@@ -1,0 +1,6 @@
+{
+  "name": "Industrial KPI & EDA Studio",
+  "description": "Dynamic exploratory data analysis, real-time telemetry, correlation matrices, Excel ingestion, PDF reporting, and GitHub publishing for industrial plants.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
