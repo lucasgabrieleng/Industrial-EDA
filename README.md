@@ -1,6 +1,6 @@
 # Industrial EDA Studio — Dynamic Exploratory Data Analysis & Plant Simulator
 
-> Version **2.0** of the **Industrial Exploratory Data Analysis (EDA)** web platform built with **React 19, TypeScript, Vite, and Tailwind CSS**, featuring a dynamic SVG industrial plant visual simulator, real-time KPI monitoring, statistical diagnostics, Excel ingestion, and PDF executive reporting.
+> This Version of the **Industrial Exploratory Data Analysis (EDA)** web platform built with **React 19, TypeScript, Vite, and Tailwind CSS**, featuring a dynamic SVG industrial plant visual simulator, real-time KPI monitoring, statistical diagnostics, Excel ingestion, and PDF executive reporting.
 >
 > - **Repository**: `https://github.com/lucasgabrieleng/Industrial_EDA_v2`
 > - **Live App (GitHub Pages)**: `https://lucasgabrieleng.github.io/Industrial_EDA_v2/`
