@@ -29,12 +29,12 @@ export interface KpiMetadata {
 export const KPI_METADATA: Record<KpiKey, KpiMetadata> = {
   Produção: {
     key: 'Produção',
-    shortLabel: 'Produção',
+    shortLabel: 'Production',
     unit: 't',
     aggregation: 'sum',
     higherIsBetter: true,
     decimals: 1,
-    definition: 'Massa diária beneficiada ou fundida na planta (toneladas métricas)',
+    definition: 'Daily plant throughput mass (metric tonnes)',
   },
   OEE: {
     key: 'OEE',
@@ -43,46 +43,46 @@ export const KPI_METADATA: Record<KpiKey, KpiMetadata> = {
     aggregation: 'mean',
     higherIsBetter: true,
     decimals: 1,
-    definition: 'Eficiência global do equipamento (Disponibilidade × Performance × Qualidade)',
+    definition: 'Overall Equipment Effectiveness (Availability × Performance × Quality)',
     target: 85.0,
   },
   Disponibilidade: {
     key: 'Disponibilidade',
-    shortLabel: 'Disponibilidade',
+    shortLabel: 'Availability',
     unit: '%',
     aggregation: 'mean',
     higherIsBetter: true,
     decimals: 1,
-    definition: 'Tempo operacional efetivo dividido pelo tempo calendário programado (%)',
+    definition: 'Effective operating time divided by scheduled calendar time (%)',
     target: 92.0,
   },
   Qualidade: {
     key: 'Qualidade',
-    shortLabel: 'Qualidade',
+    shortLabel: 'Quality',
     unit: '%',
     aggregation: 'mean',
     higherIsBetter: true,
     decimals: 2,
-    definition: 'Rendimento metalúrgico de primeira passagem dentro da especificação (%)',
+    definition: 'First-pass metallurgical yield within specification (%)',
     target: 98.0,
   },
   'Consumo especifico': {
     key: 'Consumo especifico',
-    shortLabel: 'Consumo específico',
+    shortLabel: 'Specific Energy',
     unit: 'MWh/t',
     aggregation: 'mean',
     higherIsBetter: false,
     decimals: 2,
-    definition: 'Energia elétrica e térmica consumida por tonelada produzida (MWh/t)',
+    definition: 'Electrical and thermal energy consumed per tonne produced (MWh/t)',
   },
   Custos: {
     key: 'Custos',
-    shortLabel: 'Custos',
+    shortLabel: 'Unit Cost',
     unit: 'R$/t',
     aggregation: 'mean',
     higherIsBetter: false,
     decimals: 0,
-    definition: 'Custo operacional unitário de transformação industrial (BRL por tonelada)',
+    definition: 'Industrial transformation cost per metric tonne (BRL/t)',
   },
 };
 
@@ -130,6 +130,7 @@ export interface RegressionResult {
 }
 
 export type ThemeMode = 'light' | 'dark';
+export type LanguageMode = 'en' | 'pt';
 
 export enum WorkspaceView {
   OVERVIEW = 'overview',

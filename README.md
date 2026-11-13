@@ -25,14 +25,15 @@ Industrial engineering teams frequently rely on Excel spreadsheets and static sc
 
 ## Key Features
 
-- **Interactive Industrial Plant Simulator (v2.0)**: Dynamically renders a sector-specific 4-stage SVG process schematic inside the **Tendências e KPIs** overview dashboard—adapting between **Mineração e Beneficiamento** (Britagem → Moagem SAG → Flotação → Espessamento), **Metalurgia e Refino** (Pré-aquecimento → Forno Elétrico → Refino → Lingotamento), and **Manufatura e Materiais** (Dosagem → Sinterização → Usinagem CNC → Inspeção)—with live operational health states, animated material flow, and click-to-focus KPI linkages.
-- **Correlated Hierarchy Filtering**: Dynamic `Gerência` $\rightarrow$ `Planta` cascading selectors, multi-select KPI toggles, and quick date-range windows (`30d`, `60d`, `90d`, `Tudo`, or custom range).
+- **Interactive Industrial Plant Simulator (v2.0)**: Dynamically renders a sector-specific 4-stage SVG process schematic inside the **Trends & KPIs** overview dashboard—adapting between **Mining & Beneficiation** (Crushing → SAG Milling → Flotation → Thickening), **Metallurgy & Refining** (Preheating → Electric Furnace → Refining → Continuous Casting), and **Manufacturing & Materials** (Dosing → Thermal Sintering → CNC Machining → Inspection)—with live operational health states, animated material flow, and click-to-focus KPI linkages.
+- **Correlated Hierarchy Filtering**: Dynamic Management → Plant cascading selectors, multi-select KPI toggles, and quick date-range windows (`30d`, `60d`, `90d`, `All`, or custom range).
 - **Dynamic KPI Trends & Distributions**: Interactive SVG time-series trend lines (with 7-day rolling mean and $1.5 \times \text{IQR}$ Tukey outlier highlighting) paired with zero-baseline daily bar charts and period-over-period comparisons.
 - **Real-Time Shift Telemetry Simulator**: Stream live operational shift readings every 2 seconds to observe dynamic recalculation of plant flow rates, trends, descriptive statistics, and correlations.
 - **Pearson Correlation Heatmap & OLS Regression**: Clickable diverging correlation matrix (`coolwarm` scale) coupled with an interactive bivariate scatter plot and Ordinary Least Squares regression line ($r$, $R^2$, equation).
 - **Complete Descriptive Statistics (`describe()`)**: Count, mean, sample standard deviation ($n-1$), coefficient of variation (CV%), min, quartiles (`Q1`, median, `Q3`), max, and inline SVG boxplots.
 - **Excel (`.xlsx` / `.xls`) & CSV Ingestion**: Drag-and-drop spreadsheet upload via SheetJS (`xlsx`), downloadable mock Excel template (`Industrial_KPIs_Mock_Data.xlsx`), manual daily record entry, and delete/undo actions persisted in `localStorage`.
-- **Light & Dark Themes (`?theme=light` / `?theme=dark`)**: Instant switching between high-contrast **Modo Claro** and **Modo Escuro** control-room palettes, persisted locally and preserved in shareable URLs so both visual modes can be published and showcased.
+- **Light & Dark Themes (`?theme=light` / `?theme=dark`)**: Instant switching between high-contrast **Light** and **Dark** control-room palettes, persisted locally and preserved in shareable URLs so both visual modes can be published and showcased.
+- **Bilingual UI (`English` / `Português`, `?lang=en` / `?lang=pt`)**: Built-in language switcher button in the sidebar translating all views, industrial plant schematics, charts, date/number formats, and PDF reports between English (default) and Portuguese.
 - **Branded Multi-Page PDF Export & Shareable URLs**: Generate executive PDF reports (with optional custom logo upload, descriptive stats table, correlation heatmap, and KPI charts) and copy shareable filter state URLs.
 
 ## Mock Dataset Schema

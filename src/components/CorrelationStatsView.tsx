@@ -1,10 +1,12 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { TRANSLATIONS, getKpiText } from '../i18n/translations';
 import {
   KPI_METADATA,
   type CorrelationMatrix,
   type DescriptiveStats,
   type IndustrialRecord,
   type KpiKey,
+  type LanguageMode,
   type ThemeMode,
 } from '../types/eda';
 import { computeLinearRegression, formatKpiNumber } from '../utils/statistics';
@@ -17,6 +19,7 @@ interface CorrelationStatsViewProps {
   stats: DescriptiveStats[];
   corrMatrix: CorrelationMatrix;
   theme: ThemeMode;
+  lang: LanguageMode;
 }
 
 function getHeatmapCellStyle(
@@ -80,7 +83,9 @@ export const CorrelationStatsView: React.FC<CorrelationStatsViewProps> = ({
   stats,
   corrMatrix,
   theme,
+  lang,
 }) => {
+  const t = TRANSLATIONS[lang];
   const [pairX, setPairX] = useState<KpiKey>(selectedKpis[0] ?? 'Produção');
   const [pairY, setPairY] = useState<KpiKey>(
     selectedKpis[1] ?? selectedKpis[0] ?? 'Consumo especifico'
@@ -128,9 +133,7 @@ export const CorrelationStatsView: React.FC<CorrelationStatsViewProps> = ({
   if (selectedKpis.length === 0) {
     return (
       <Surface className="p-8">
-        <p className="text-body text-muted">
-          Selecione pelo menos um KPI no menu lateral para calcular as estatísticas descritivas e matriz de correlação.
-        </p>
+        <p className="text-body text-muted">{t.selectOneKpiCorr}</p>
       </Surface>
     );
   }
@@ -143,11 +146,9 @@ export const CorrelationStatsView: React.FC<CorrelationStatsViewProps> = ({
         <div className="xl:col-span-7 p-5 flex flex-col gap-4 min-w-0">
           <div className="flex flex-wrap items-baseline justify-between gap-2">
             <div>
-              <h2 className="text-title text-foreground">
-                Heatmap da matriz de correlação de Pearson
-              </h2>
+              <h2 className="text-title text-foreground">{t.heatmapTitle}</h2>
               <p className="text-caption text-muted">
-                Coeficiente linear r ∈ [−1, +1] sobre {filteredRows.length} registros · Clique em uma célula para abrir a regressão
+                {t.heatmapSubtitle(filteredRows.length)}
               </p>
             </div>
             {strongestInsight && (
@@ -159,17 +160,15 @@ export const CorrelationStatsView: React.FC<CorrelationStatsViewProps> = ({
                 }}
                 className="text-caption font-medium text-primary hover:underline cursor-pointer"
               >
-                Maior relação: {KPI_METADATA[strongestInsight.a].shortLabel} ×{' '}
-                {KPI_METADATA[strongestInsight.b].shortLabel} (r ={' '}
+                {t.strongestPair}: {getKpiText(strongestInsight.a, lang).shortLabel} ×{' '}
+                {getKpiText(strongestInsight.b, lang).shortLabel} (r ={' '}
                 {strongestInsight.r.toFixed(2)})
               </button>
             )}
           </div>
 
           {selectedKpis.length < 2 ? (
-            <p className="py-8 text-body text-muted">
-              Selecione ao menos 2 KPIs na barra lateral para construir a matriz de correlação.
-            </p>
+            <p className="py-8 text-body text-muted">{t.needTwoKpis}</p>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full border-collapse border border-border/70 text-caption sm:text-label tabular-nums">
@@ -179,68 +178,68 @@ export const CorrelationStatsView: React.FC<CorrelationStatsViewProps> = ({
                       KPI
                     </th>
                     {selectedKpis.map((colKpi) => {
-                      const compactLabel: Record<KpiKey, string> = {
-                        Produção: 'Prod.',
-                        OEE: 'OEE',
-                        Disponibilidade: 'Disp.',
-                        Qualidade: 'Qual.',
-                        'Consumo especifico': 'Consumo',
-                        Custos: 'Custos',
-                      };
+                      const kpiText = getKpiText(colKpi, lang);
                       return (
                         <th
                           key={colKpi}
-                          title={KPI_METADATA[colKpi].shortLabel}
+                          title={kpiText.shortLabel}
                           className="px-1.5 py-2 text-center text-caption uppercase tracking-wider font-semibold text-muted border-r last:border-r-0 border-border/70 whitespace-nowrap"
                         >
-                          {compactLabel[colKpi]}
+                          {kpiText.compactLabel}
                         </th>
                       );
                     })}
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border/70">
-                  {selectedKpis.map((rowKpi) => (
-                    <tr key={rowKpi}>
-                      <th
-                        scope="row"
-                        className="px-2 py-2 text-left text-caption sm:text-label font-medium text-foreground bg-background/40 border-r border-border/70 whitespace-nowrap"
-                      >
-                        {KPI_METADATA[rowKpi].shortLabel}
-                      </th>
-                      {selectedKpis.map((colKpi) => {
-                        const r = corrMatrix[rowKpi]?.[colKpi] ?? null;
-                        const cellStyle = getHeatmapCellStyle(r, theme);
-                        const isSelectedPair =
-                          (pairX === rowKpi && pairY === colKpi) ||
-                          (pairX === colKpi && pairY === rowKpi);
+                  {selectedKpis.map((rowKpi) => {
+                    const rowText = getKpiText(rowKpi, lang);
+                    return (
+                      <tr key={rowKpi}>
+                        <th
+                          scope="row"
+                          className="px-2 py-2 text-left text-caption sm:text-label font-medium text-foreground bg-background/40 border-r border-border/70 whitespace-nowrap"
+                        >
+                          {rowText.shortLabel}
+                        </th>
+                        {selectedKpis.map((colKpi) => {
+                          const r = corrMatrix[rowKpi]?.[colKpi] ?? null;
+                          const cellStyle = getHeatmapCellStyle(r, theme);
+                          const isSelectedPair =
+                            (pairX === rowKpi && pairY === colKpi) ||
+                            (pairX === colKpi && pairY === rowKpi);
+                          const colText = getKpiText(colKpi, lang);
+                          const valText = r === null ? t.noDataShort : r.toFixed(2);
 
-                        return (
-                          <td
-                            key={colKpi}
-                            style={cellStyle}
-                            className={`p-0 border-r last:border-r-0 border-border/70 ${
-                              isSelectedPair ? 'ring-2 ring-inset ring-foreground' : ''
-                            }`}
-                          >
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setPairX(rowKpi);
-                                setPairY(colKpi);
-                              }}
-                              aria-label={`Inspecionar correlação entre ${rowKpi} e ${colKpi}: ${
-                                r === null ? 'Sem dados' : r.toFixed(2)
+                          return (
+                            <td
+                              key={colKpi}
+                              style={cellStyle}
+                              className={`p-0 border-r last:border-r-0 border-border/70 ${
+                                isSelectedPair ? 'ring-2 ring-inset ring-foreground' : ''
                               }`}
-                              className="w-full min-h-12 px-2 py-2.5 text-center font-medium cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-foreground"
                             >
-                              {r === null ? 'Sem dados' : r.toFixed(2)}
-                            </button>
-                          </td>
-                        );
-                      })}
-                    </tr>
-                  ))}
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setPairX(rowKpi);
+                                  setPairY(colKpi);
+                                }}
+                                aria-label={t.inspectCorrAria(
+                                  rowText.shortLabel,
+                                  colText.shortLabel,
+                                  valText
+                                )}
+                                className="w-full min-h-12 px-2 py-2.5 text-center font-medium cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-foreground"
+                              >
+                                {valText}
+                              </button>
+                            </td>
+                          );
+                        })}
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
@@ -253,18 +252,18 @@ export const CorrelationStatsView: React.FC<CorrelationStatsViewProps> = ({
                 className="inline-block w-3 h-3 rounded-xs"
                 style={{ backgroundColor: 'oklch(0.51 0.11 238)' }}
               />
-              −1,00 Correlação inversa forte
+              {t.corrInverse}
             </span>
             <span className="inline-flex items-center gap-2">
               <span className="inline-block w-3 h-3 rounded-xs border border-border bg-surface" />
-              0,00 Independente
+              {t.corrNeutral}
             </span>
             <span className="inline-flex items-center gap-2">
               <span
                 className="inline-block w-3 h-3 rounded-xs"
                 style={{ backgroundColor: 'oklch(0.57 0.135 40)' }}
               />
-              +1,00 Correlação direta forte
+              {t.corrDirect}
             </span>
           </div>
         </div>
@@ -272,16 +271,12 @@ export const CorrelationStatsView: React.FC<CorrelationStatsViewProps> = ({
         {/* Right: Interactive Scatter & OLS Regression Explorer */}
         <div className="xl:col-span-5 p-5 flex flex-col gap-4 min-w-0">
           <div>
-            <h2 className="text-title text-foreground">
-              Dispersão bivariada e regressão linear
-            </h2>
-            <p className="text-caption text-muted">
-              Ajuste por mínimos quadrados ordinários (OLS) entre dois indicadores
-            </p>
+            <h2 className="text-title text-foreground">{t.scatterTitle}</h2>
+            <p className="text-caption text-muted">{t.scatterSubtitle}</p>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <Field label="Eixo X (explicativa)" htmlFor="scatter-x-kpi">
+            <Field label={t.xAxisLabel} htmlFor="scatter-x-kpi">
               <select
                 id="scatter-x-kpi"
                 value={pairX}
@@ -290,12 +285,12 @@ export const CorrelationStatsView: React.FC<CorrelationStatsViewProps> = ({
               >
                 {selectedKpis.map((k) => (
                   <option key={k} value={k}>
-                    {KPI_METADATA[k].shortLabel} ({KPI_METADATA[k].unit})
+                    {getKpiText(k, lang).shortLabel} ({KPI_METADATA[k].unit})
                   </option>
                 ))}
               </select>
             </Field>
-            <Field label="Eixo Y (resposta)" htmlFor="scatter-y-kpi">
+            <Field label={t.yAxisLabel} htmlFor="scatter-y-kpi">
               <select
                 id="scatter-y-kpi"
                 value={pairY}
@@ -304,14 +299,14 @@ export const CorrelationStatsView: React.FC<CorrelationStatsViewProps> = ({
               >
                 {selectedKpis.map((k) => (
                   <option key={k} value={k}>
-                    {KPI_METADATA[k].shortLabel} ({KPI_METADATA[k].unit})
+                    {getKpiText(k, lang).shortLabel} ({KPI_METADATA[k].unit})
                   </option>
                 ))}
               </select>
             </Field>
           </div>
 
-          <BivariateScatterChart regression={regression} />
+          <BivariateScatterChart regression={regression} lang={lang} />
         </div>
       </Surface>
 
@@ -319,15 +314,11 @@ export const CorrelationStatsView: React.FC<CorrelationStatsViewProps> = ({
       <Surface className="divide-y divide-border/60">
         <div className="px-5 py-4 flex flex-wrap items-baseline justify-between gap-2">
           <div>
-            <h2 className="text-title text-foreground">
-              Estatísticas descritivas (describe)
-            </h2>
-            <p className="text-caption text-muted">
-              Resumo paramétrico e quartílico calculado sobre os registros válidos da planta e período ativos
-            </p>
+            <h2 className="text-title text-foreground">{t.describeTitle}</h2>
+            <p className="text-caption text-muted">{t.describeSubtitle}</p>
           </div>
           <span className="text-caption text-muted tabular-nums">
-             Amostra filtrada: {filteredRows.length} linhas
+            {t.filteredSample(filteredRows.length)}
           </span>
         </div>
 
@@ -335,22 +326,23 @@ export const CorrelationStatsView: React.FC<CorrelationStatsViewProps> = ({
           <table className="w-full text-label tabular-nums border-collapse">
             <thead>
               <tr className="border-b border-border/70 bg-background/60 text-caption uppercase tracking-wider text-muted">
-                <th className="py-3 px-4 text-left font-semibold">KPI (Unidade)</th>
-                <th className="py-3 px-3 text-right font-semibold">N</th>
-                <th className="py-3 px-3 text-right font-semibold">Média</th>
-                <th className="py-3 px-3 text-right font-semibold">Desv. Padrão</th>
-                <th className="py-3 px-3 text-right font-semibold">CV (%)</th>
-                <th className="py-3 px-3 text-right font-semibold">Mínimo</th>
-                <th className="py-3 px-3 text-right font-semibold">25% (Q1)</th>
-                <th className="py-3 px-3 text-right font-semibold">Mediana (50%)</th>
-                <th className="py-3 px-3 text-right font-semibold">75% (Q3)</th>
-                <th className="py-3 px-3 text-right font-semibold">Máximo</th>
-                <th className="py-3 px-4 text-left font-semibold">Distribuição (Q1–Q3)</th>
+                <th className="py-3 px-4 text-left font-semibold">{t.colKpiUnit}</th>
+                <th className="py-3 px-3 text-right font-semibold">{t.colCount}</th>
+                <th className="py-3 px-3 text-right font-semibold">{t.colMean}</th>
+                <th className="py-3 px-3 text-right font-semibold">{t.colStd}</th>
+                <th className="py-3 px-3 text-right font-semibold">{t.colCv}</th>
+                <th className="py-3 px-3 text-right font-semibold">{t.colMin}</th>
+                <th className="py-3 px-3 text-right font-semibold">{t.colQ1}</th>
+                <th className="py-3 px-3 text-right font-semibold">{t.colMedian}</th>
+                <th className="py-3 px-3 text-right font-semibold">{t.colQ3}</th>
+                <th className="py-3 px-3 text-right font-semibold">{t.colMax}</th>
+                <th className="py-3 px-4 text-left font-semibold">{t.colDist}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border/50">
               {stats.map((s) => {
                 const meta = KPI_METADATA[s.kpi];
+                const kpiText = getKpiText(s.kpi, lang);
                 const span =
                   s.max !== null && s.min !== null ? Math.max(1e-9, s.max - s.min) : 1;
                 const q1Pct =
@@ -365,42 +357,42 @@ export const CorrelationStatsView: React.FC<CorrelationStatsViewProps> = ({
                 return (
                   <tr key={s.kpi} className="hover:bg-background/50">
                     <td className="py-3 px-4 text-left font-medium text-foreground whitespace-nowrap">
-                      {meta.shortLabel}{' '}
+                      {kpiText.shortLabel}{' '}
                       <span className="text-caption text-muted font-normal">
                         ({meta.unit})
                       </span>
                     </td>
                     <td className="py-3 px-3 text-right text-muted">{s.count}</td>
                     <td className="py-3 px-3 text-right font-medium text-foreground">
-                      {formatKpiNumber(s.mean, meta.decimals)}
+                      {formatKpiNumber(s.mean, meta.decimals, lang)}
                     </td>
                     <td className="py-3 px-3 text-right text-foreground">
-                      {formatKpiNumber(s.std, meta.decimals)}
+                      {formatKpiNumber(s.std, meta.decimals, lang)}
                     </td>
                     <td className="py-3 px-3 text-right text-muted">
-                      {s.cvPercent !== null ? `${formatKpiNumber(s.cvPercent, 1)}%` : '—'}
+                      {s.cvPercent !== null ? `${formatKpiNumber(s.cvPercent, 1, lang)}%` : '—'}
                     </td>
                     <td className="py-3 px-3 text-right text-muted">
-                      {formatKpiNumber(s.min, meta.decimals)}
+                      {formatKpiNumber(s.min, meta.decimals, lang)}
                     </td>
                     <td className="py-3 px-3 text-right text-foreground">
-                      {formatKpiNumber(s.q25, meta.decimals)}
+                      {formatKpiNumber(s.q25, meta.decimals, lang)}
                     </td>
                     <td className="py-3 px-3 text-right font-semibold text-primary">
-                      {formatKpiNumber(s.median, meta.decimals)}
+                      {formatKpiNumber(s.median, meta.decimals, lang)}
                     </td>
                     <td className="py-3 px-3 text-right text-foreground">
-                      {formatKpiNumber(s.q75, meta.decimals)}
+                      {formatKpiNumber(s.q75, meta.decimals, lang)}
                     </td>
                     <td className="py-3 px-3 text-right text-muted">
-                      {formatKpiNumber(s.max, meta.decimals)}
+                      {formatKpiNumber(s.max, meta.decimals, lang)}
                     </td>
                     <td className="py-3 px-4 min-w-[140px]">
                       {s.count > 1 ? (
                         <svg
                           viewBox="0 0 120 18"
                           className="w-28 h-4 overflow-visible"
-                          aria-label={`Boxplot resumido de ${meta.shortLabel}`}
+                          aria-label={t.boxplotAria(kpiText.shortLabel)}
                         >
                           <line
                             x1={4}

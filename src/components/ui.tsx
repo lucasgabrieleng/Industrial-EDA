@@ -91,7 +91,7 @@ export class ErrorBoundary extends Component<{ children: ReactNode }, ErrorBound
   static getDerivedStateFromError(error: Error): ErrorBoundaryState {
     return {
       hasError: true,
-      errorMessage: error?.message || 'Erro inesperado ao renderizar a análise industrial.',
+      errorMessage: error?.message || 'Unexpected error while rendering industrial analytics.',
     };
   }
 
@@ -101,12 +101,12 @@ export class ErrorBoundary extends Component<{ children: ReactNode }, ErrorBound
         <div className="min-h-dvh bg-background text-foreground flex items-center justify-center p-6">
           <Surface className="max-w-lg w-full p-6 flex flex-col gap-4" role="alert">
             <h1 className="text-title text-foreground">
-              Não foi possível carregar a visualização
+              Unable to load view
             </h1>
             <p className="text-body text-muted">{this.state.errorMessage}</p>
             <div className="pt-2 border-t border-border/60 flex items-center justify-end">
               <Button tone="primary" onClick={() => window.location.reload()}>
-                Recarregar aplicação
+                Reload application
               </Button>
             </div>
           </Surface>

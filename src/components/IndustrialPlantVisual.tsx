@@ -1,6 +1,16 @@
 import React, { useMemo, useState } from 'react';
-import { formatFullPtDate } from '../data/mockIndustrialData';
-import { KPI_METADATA, type IndustrialRecord, type KpiKey } from '../types/eda';
+import { formatFullDate } from '../data/mockIndustrialData';
+import {
+  TRANSLATIONS,
+  getKpiText,
+  translatePlantName,
+} from '../i18n/translations';
+import {
+  KPI_METADATA,
+  type IndustrialRecord,
+  type KpiKey,
+  type LanguageMode,
+} from '../types/eda';
 import { computeAggregateKpiValue, formatKpiNumber } from '../utils/statistics';
 import { Surface } from './ui';
 
@@ -11,6 +21,7 @@ interface IndustrialPlantVisualProps {
   planta: string;
   filteredRows: IndustrialRecord[];
   isRealtimeActive: boolean;
+  lang: LanguageMode;
   onFocusKpi?: (kpi: KpiKey) => void;
 }
 
@@ -51,135 +62,249 @@ interface StageSpec {
 }
 
 const SECTOR_CONFIG: Record<
-  PlantSector,
-  {
-    label: string;
-    subtitle: string;
-    flowTag: string;
-    stages: StageSpec[];
-  }
+  LanguageMode,
+  Record<
+    PlantSector,
+    {
+      label: string;
+      subtitle: string;
+      flowTag: string;
+      stages: StageSpec[];
+    }
+  >
 > = {
-  mining: {
-    label: 'Mineração e Beneficiamento',
-    subtitle: 'Fluxograma de cominuição, concentração e desaguamento mineral',
-    flowTag: 'Polpa mineral & concentrado',
-    stages: [
-      {
-        id: 'crushing',
-        title: '01 · Britagem Primária',
-        equipment: 'Alimentador & Britador de Mandíbulas',
-        linkedKpi: 'Disponibilidade',
-        cx: 120,
-      },
-      {
-        id: 'milling',
-        title: '02 · Moagem SAG',
-        equipment: 'Moinho Semiautógeno + Classificação',
-        linkedKpi: 'Consumo especifico',
-        cx: 360,
-      },
-      {
-        id: 'separation',
-        title: '03 · Separação & Flotação',
-        equipment: 'Células de Flotação & Tambores Magnéticos',
-        linkedKpi: 'OEE',
-        cx: 600,
-      },
-      {
-        id: 'thickener',
-        title: '04 · Espessamento & Silo',
-        equipment: 'Espessador de Concentrado & Filtragem',
-        linkedKpi: 'Qualidade',
-        cx: 840,
-      },
-    ],
+  en: {
+    mining: {
+      label: 'Mining & Beneficiation',
+      subtitle: 'Comminution, mineral concentration, and dewatering process flow',
+      flowTag: 'Mineral slurry & concentrate',
+      stages: [
+        {
+          id: 'crushing',
+          title: '01 · Primary Crushing',
+          equipment: 'Apron Feeder & Jaw Crusher',
+          linkedKpi: 'Disponibilidade',
+          cx: 120,
+        },
+        {
+          id: 'milling',
+          title: '02 · SAG Milling',
+          equipment: 'Semi-Autogenous Mill & Classification',
+          linkedKpi: 'Consumo especifico',
+          cx: 360,
+        },
+        {
+          id: 'separation',
+          title: '03 · Separation & Flotation',
+          equipment: 'Flotation Cells & Magnetic Drums',
+          linkedKpi: 'OEE',
+          cx: 600,
+        },
+        {
+          id: 'thickener',
+          title: '04 · Thickening & Silo',
+          equipment: 'Concentrate Thickener & Filtration',
+          linkedKpi: 'Qualidade',
+          cx: 840,
+        },
+      ],
+    },
+    metallurgy: {
+      label: 'Metallurgy & Refining',
+      subtitle: 'Pyrometallurgical reduction, thermal refining, and continuous casting flow',
+      flowTag: 'Metallic charge & molten alloy',
+      stages: [
+        {
+          id: 'preheat',
+          title: '01 · Preheating',
+          equipment: 'Dosing Silo & Rotary Charge Kiln',
+          linkedKpi: 'Disponibilidade',
+          cx: 120,
+        },
+        {
+          id: 'furnace',
+          title: '02 · Electric Furnace',
+          equipment: 'Submerged Arc Reactor (High Power)',
+          linkedKpi: 'Consumo especifico',
+          cx: 360,
+        },
+        {
+          id: 'refining',
+          title: '03 · Refining & Leaching',
+          equipment: 'Metallurgical Refining Ladle & Slag',
+          linkedKpi: 'OEE',
+          cx: 600,
+        },
+        {
+          id: 'casting',
+          title: '04 · Continuous Casting',
+          equipment: 'Ingot Casting Line & Dispatch',
+          linkedKpi: 'Qualidade',
+          cx: 840,
+        },
+      ],
+    },
+    manufacturing: {
+      label: 'Manufacturing & Materials',
+      subtitle: 'Dosing, controlled sintering, CNC machining, and metrology flow',
+      flowTag: 'Technical batch & finished parts',
+      stages: [
+        {
+          id: 'dosing',
+          title: '01 · Dosing & Blending',
+          equipment: 'Gravimetric Station & V-Blender',
+          linkedKpi: 'Disponibilidade',
+          cx: 120,
+        },
+        {
+          id: 'sintering',
+          title: '02 · Thermal Sintering',
+          equipment: 'Continuous Vacuum / Atmosphere Kiln',
+          linkedKpi: 'Consumo especifico',
+          cx: 360,
+        },
+        {
+          id: 'machining',
+          title: '03 · CNC Machining',
+          equipment: 'Automated Multi-Axis Cell',
+          linkedKpi: 'OEE',
+          cx: 600,
+        },
+        {
+          id: 'metrology',
+          title: '04 · Inspection & Dispatch',
+          equipment: 'Metrology Gantry & Palletizing',
+          linkedKpi: 'Qualidade',
+          cx: 840,
+        },
+      ],
+    },
   },
-  metallurgy: {
-    label: 'Metalurgia e Refino',
-    subtitle: 'Fluxograma pirometalúrgico de redução, refino térmico e lingotamento',
-    flowTag: 'Carga metálica & liga fundida',
-    stages: [
-      {
-        id: 'preheat',
-        title: '01 · Pré-aquecimento',
-        equipment: 'Silo Dosador & Forno Rotativo de Carga',
-        linkedKpi: 'Disponibilidade',
-        cx: 120,
-      },
-      {
-        id: 'furnace',
-        title: '02 · Forno Elétrico',
-        equipment: 'Reator a Arco Submerso (Alta Potência)',
-        linkedKpi: 'Consumo especifico',
-        cx: 360,
-      },
-      {
-        id: 'refining',
-        title: '03 · Refino & Lixiviação',
-        equipment: 'Panela de Refino Metalúrgico & Escória',
-        linkedKpi: 'OEE',
-        cx: 600,
-      },
-      {
-        id: 'casting',
-        title: '04 · Lingotamento',
-        equipment: 'Lingoteira Contínua & Expedição',
-        linkedKpi: 'Qualidade',
-        cx: 840,
-      },
-    ],
-  },
-  manufacturing: {
-    label: 'Manufatura e Materiais',
-    subtitle: 'Fluxograma de dosagem, sinterização controlada, usinagem e metrologia',
-    flowTag: 'Lote técnico & peças acabadas',
-    stages: [
-      {
-        id: 'dosing',
-        title: '01 · Dosagem & Mistura',
-        equipment: 'Estação Gravimétrica & Misturador V',
-        linkedKpi: 'Disponibilidade',
-        cx: 120,
-      },
-      {
-        id: 'sintering',
-        title: '02 · Sinterização Térmica',
-        equipment: 'Forno Contínuo a Vácuo / Atmosfera',
-        linkedKpi: 'Consumo especifico',
-        cx: 360,
-      },
-      {
-        id: 'machining',
-        title: '03 · Usinagem CNC',
-        equipment: 'Célula Automatizada Multi-eixo',
-        linkedKpi: 'OEE',
-        cx: 600,
-      },
-      {
-        id: 'metrology',
-        title: '04 · Inspeção & Expedição',
-        equipment: 'Pórtico de Metrologia & Paletização',
-        linkedKpi: 'Qualidade',
-        cx: 840,
-      },
-    ],
+  pt: {
+    mining: {
+      label: 'Mineração e Beneficiamento',
+      subtitle: 'Fluxograma de cominuição, concentração e desaguamento mineral',
+      flowTag: 'Polpa mineral & concentrado',
+      stages: [
+        {
+          id: 'crushing',
+          title: '01 · Britagem Primária',
+          equipment: 'Alimentador & Britador de Mandíbulas',
+          linkedKpi: 'Disponibilidade',
+          cx: 120,
+        },
+        {
+          id: 'milling',
+          title: '02 · Moagem SAG',
+          equipment: 'Moinho Semiautógeno + Classificação',
+          linkedKpi: 'Consumo especifico',
+          cx: 360,
+        },
+        {
+          id: 'separation',
+          title: '03 · Separação & Flotação',
+          equipment: 'Células de Flotação & Tambores Magnéticos',
+          linkedKpi: 'OEE',
+          cx: 600,
+        },
+        {
+          id: 'thickener',
+          title: '04 · Espessamento & Silo',
+          equipment: 'Espessador de Concentrado & Filtragem',
+          linkedKpi: 'Qualidade',
+          cx: 840,
+        },
+      ],
+    },
+    metallurgy: {
+      label: 'Metalurgia e Refino',
+      subtitle: 'Fluxograma pirometalúrgico de redução, refino térmico e lingotamento',
+      flowTag: 'Carga metálica & liga fundida',
+      stages: [
+        {
+          id: 'preheat',
+          title: '01 · Pré-aquecimento',
+          equipment: 'Silo Dosador & Forno Rotativo de Carga',
+          linkedKpi: 'Disponibilidade',
+          cx: 120,
+        },
+        {
+          id: 'furnace',
+          title: '02 · Forno Elétrico',
+          equipment: 'Reator a Arco Submerso (Alta Potência)',
+          linkedKpi: 'Consumo especifico',
+          cx: 360,
+        },
+        {
+          id: 'refining',
+          title: '03 · Refino & Lixiviação',
+          equipment: 'Panela de Refino Metalúrgico & Escória',
+          linkedKpi: 'OEE',
+          cx: 600,
+        },
+        {
+          id: 'casting',
+          title: '04 · Lingotamento',
+          equipment: 'Lingoteira Contínua & Expedição',
+          linkedKpi: 'Qualidade',
+          cx: 840,
+        },
+      ],
+    },
+    manufacturing: {
+      label: 'Manufatura e Materiais',
+      subtitle: 'Fluxograma de dosagem, sinterização controlada, usinagem e metrologia',
+      flowTag: 'Lote técnico & peças acabadas',
+      stages: [
+        {
+          id: 'dosing',
+          title: '01 · Dosagem & Mistura',
+          equipment: 'Estação Gravimétrica & Misturador V',
+          linkedKpi: 'Disponibilidade',
+          cx: 120,
+        },
+        {
+          id: 'sintering',
+          title: '02 · Sinterização Térmica',
+          equipment: 'Forno Contínuo a Vácuo / Atmosfera',
+          linkedKpi: 'Consumo especifico',
+          cx: 360,
+        },
+        {
+          id: 'machining',
+          title: '03 · Usinagem CNC',
+          equipment: 'Célula Automatizada Multi-eixo',
+          linkedKpi: 'OEE',
+          cx: 600,
+        },
+        {
+          id: 'metrology',
+          title: '04 · Inspeção & Expedição',
+          equipment: 'Pórtico de Metrologia & Paletização',
+          linkedKpi: 'Qualidade',
+          cx: 840,
+        },
+      ],
+    },
   },
 };
 
 function getOperationalHealth(
   oee: number | null,
-  availability: number | null
+  availability: number | null,
+  lang: LanguageMode
 ): { label: string; colorVar: string } {
+  const labels = TRANSLATIONS[lang].healthLabels;
   if (availability !== null && availability < 86) {
-    return { label: 'Parada / Manutenção', colorVar: 'var(--color-danger)' };
+    return { label: labels.shutdown, colorVar: 'var(--color-danger)' };
   }
   if (
     (oee !== null && oee < 80) ||
     (availability !== null && availability < 90.5)
   ) {
-    return { label: 'Atenção operacional', colorVar: 'var(--color-accent)' };
+    return { label: labels.attention, colorVar: 'var(--color-accent)' };
   }
-  return { label: 'Operação nominal', colorVar: 'var(--color-positive)' };
+  return { label: labels.nominal, colorVar: 'var(--color-positive)' };
 }
 
 export const IndustrialPlantVisual: React.FC<IndustrialPlantVisualProps> = ({
@@ -187,8 +312,10 @@ export const IndustrialPlantVisual: React.FC<IndustrialPlantVisualProps> = ({
   planta,
   filteredRows,
   isRealtimeActive,
+  lang,
   onFocusKpi,
 }) => {
+  const t = TRANSLATIONS[lang];
   const autoSector = useMemo(
     () => inferPlantSector(gerencia, planta),
     [gerencia, planta]
@@ -200,7 +327,7 @@ export const IndustrialPlantVisual: React.FC<IndustrialPlantVisualProps> = ({
 
   const activeSector: PlantSector =
     overrideSector === 'auto' ? autoSector : overrideSector;
-  const config = SECTOR_CONFIG[activeSector];
+  const config = SECTOR_CONFIG[lang][activeSector];
 
   const metrics = useMemo(() => {
     const latest = filteredRows[filteredRows.length - 1];
@@ -231,7 +358,8 @@ export const IndustrialPlantVisual: React.FC<IndustrialPlantVisualProps> = ({
 
   const health = getOperationalHealth(
     metrics.latest?.OEE ?? metrics.avgOee,
-    metrics.latest?.Disponibilidade ?? metrics.avgDisp
+    metrics.latest?.Disponibilidade ?? metrics.avgDisp,
+    lang
   );
 
   // Normalized fill factors (0..1) for tank/furnace/load visual bars
@@ -254,18 +382,18 @@ export const IndustrialPlantVisual: React.FC<IndustrialPlantVisualProps> = ({
   const getStageValue = (kpi: KpiKey): string => {
     const meta = KPI_METADATA[kpi];
     if (kpi === 'Disponibilidade') {
-      return `${formatKpiNumber(metrics.avgDisp, meta.decimals)} ${meta.unit}`;
+      return `${formatKpiNumber(metrics.avgDisp, meta.decimals, lang)} ${meta.unit}`;
     }
     if (kpi === 'Consumo especifico') {
-      return `${formatKpiNumber(metrics.avgEnergy, meta.decimals)} ${meta.unit}`;
+      return `${formatKpiNumber(metrics.avgEnergy, meta.decimals, lang)} ${meta.unit}`;
     }
     if (kpi === 'OEE') {
-      return `${formatKpiNumber(metrics.avgOee, meta.decimals)} ${meta.unit}`;
+      return `${formatKpiNumber(metrics.avgOee, meta.decimals, lang)} ${meta.unit}`;
     }
     if (kpi === 'Qualidade') {
-      return `${formatKpiNumber(metrics.avgQual, meta.decimals)} ${meta.unit}`;
+      return `${formatKpiNumber(metrics.avgQual, meta.decimals, lang)} ${meta.unit}`;
     }
-    return `${formatKpiNumber(metrics.prodDailyAvg, 1)} t/d`;
+    return `${formatKpiNumber(metrics.prodDailyAvg, 1, lang)} ${t.daysPerDayUnit}`;
   };
 
   const renderStageEquipmentSvg = (stageIndex: number, cx: number) => {
@@ -719,7 +847,7 @@ export const IndustrialPlantVisual: React.FC<IndustrialPlantVisualProps> = ({
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2.5">
             <h2 className="text-title text-foreground">
-              Simulador visual da planta · {config.label}
+              {t.plantSimulatorTitle(config.label)}
             </h2>
             <span
               className="inline-flex items-center gap-1.5 text-caption font-medium"
@@ -733,9 +861,9 @@ export const IndustrialPlantVisual: React.FC<IndustrialPlantVisualProps> = ({
             </span>
           </div>
           <p className="text-caption text-muted">
-            {config.subtitle} · {planta}
+            {config.subtitle} · {translatePlantName(planta, lang)}
             {metrics.latest
-              ? ` · Última leitura: ${formatFullPtDate(metrics.latest.Data)}`
+              ? ` · ${t.lastReading}: ${formatFullDate(metrics.latest.Data, lang)}`
               : ''}
           </p>
         </div>
@@ -743,15 +871,15 @@ export const IndustrialPlantVisual: React.FC<IndustrialPlantVisualProps> = ({
         {/* Allow automatic inference OR manual preview of the 3 industrial plant topologies */}
         <div
           role="group"
-          aria-label="Tipo de planta industrial"
+          aria-label={t.plantTypeAria}
           className="flex flex-wrap items-center gap-1.5"
         >
           {(
             [
-              { id: 'auto', label: 'Automático' },
-              { id: 'mining', label: 'Mineração' },
-              { id: 'metallurgy', label: 'Metalurgia' },
-              { id: 'manufacturing', label: 'Manufatura' },
+              { id: 'auto', label: t.sectorButtons.auto },
+              { id: 'mining', label: t.sectorButtons.mining },
+              { id: 'metallurgy', label: t.sectorButtons.metallurgy },
+              { id: 'manufacturing', label: t.sectorButtons.manufacturing },
             ] as const
           ).map((opt) => {
             const active = overrideSector === opt.id;
@@ -783,7 +911,7 @@ export const IndustrialPlantVisual: React.FC<IndustrialPlantVisualProps> = ({
           viewBox="0 0 960 256"
           className="w-full h-auto select-none"
           role="img"
-          aria-label={`Diagrama esquemático de processo industrial para ${config.label}`}
+          aria-label={t.plantSimulatorTitle(config.label)}
         >
           {/* Transfer pipes between stages */}
           {[0, 1, 2].map((idx) => {
@@ -832,13 +960,13 @@ export const IndustrialPlantVisual: React.FC<IndustrialPlantVisualProps> = ({
             fill="var(--color-muted)"
             className="svg-halo"
           >
-            Fluxo contínuo: {config.flowTag} · Vazão média:{' '}
-            {formatKpiNumber(metrics.prodDailyAvg, 1)} t/dia
+            {t.continuousFlow}: {config.flowTag} · {t.avgThroughput}:{' '}
+            {formatKpiNumber(metrics.prodDailyAvg, 1, lang)} {t.daysPerDayUnit}
           </text>
 
           {/* 4 Industrial Stages */}
           {config.stages.map((stage, idx) => {
-            const meta = KPI_METADATA[stage.linkedKpi];
+            const kpiText = getKpiText(stage.linkedKpi, lang);
             const valLabel = getStageValue(stage.linkedKpi);
             return (
               <g
@@ -875,7 +1003,7 @@ export const IndustrialPlantVisual: React.FC<IndustrialPlantVisualProps> = ({
                   fill="var(--color-primary)"
                   className="svg-halo tabular-nums"
                 >
-                  {meta.shortLabel}: {valLabel}
+                  {kpiText.shortLabel}: {valLabel}
                 </text>
               </g>
             );
@@ -886,7 +1014,7 @@ export const IndustrialPlantVisual: React.FC<IndustrialPlantVisualProps> = ({
       {/* Stage KPI Readout Strip parted by 1px rules (Zero nested bordered boxes) */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 divide-y sm:divide-y-0 sm:divide-x divide-border/60">
         {config.stages.map((stage) => {
-          const meta = KPI_METADATA[stage.linkedKpi];
+          const kpiText = getKpiText(stage.linkedKpi, lang);
           const isFocused = selectedStageId === stage.id;
           return (
             <button
@@ -904,7 +1032,7 @@ export const IndustrialPlantVisual: React.FC<IndustrialPlantVisualProps> = ({
                 {stage.title}
               </span>
               <span className="text-label font-semibold text-foreground tabular-nums">
-                {meta.shortLabel}: {getStageValue(stage.linkedKpi)}
+                {kpiText.shortLabel}: {getStageValue(stage.linkedKpi)}
               </span>
               <span className="text-caption text-muted">{stage.equipment}</span>
             </button>

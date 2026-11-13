@@ -1,9 +1,11 @@
 import React, { useMemo, useState } from 'react';
-import { formatFullPtDate, formatShortPtDate } from '../data/mockIndustrialData';
+import { formatFullDate, formatShortDate } from '../data/mockIndustrialData';
+import { TRANSLATIONS, getKpiText } from '../i18n/translations';
 import {
   KPI_METADATA,
   type IndustrialRecord,
   type KpiKey,
+  type LanguageMode,
   type RegressionResult,
 } from '../types/eda';
 import {
@@ -15,6 +17,7 @@ import {
 interface KpiChartProps {
   rows: IndustrialRecord[];
   kpi: KpiKey;
+  lang: LanguageMode;
   showRollingMean?: boolean;
   highlightOutliers?: boolean;
   onSelectDate?: (date: string) => void;
@@ -23,11 +26,14 @@ interface KpiChartProps {
 export const KpiTrendChart: React.FC<KpiChartProps> = ({
   rows,
   kpi,
+  lang,
   showRollingMean = true,
   highlightOutliers = true,
   onSelectDate,
 }) => {
   const meta = KPI_METADATA[kpi];
+  const kpiText = getKpiText(kpi, lang);
+  const t = TRANSLATIONS[lang];
   const [hoverIdx, setHoverIdx] = useState<number | null>(null);
 
   const outlierIds = useMemo(
@@ -62,7 +68,7 @@ export const KpiTrendChart: React.FC<KpiChartProps> = ({
   if (rows.length === 0 || validNums.length === 0) {
     return (
       <div className="py-10 text-center text-body text-muted">
-        Sem registros numéricos de {meta.shortLabel} para o intervalo selecionado.
+        {t.noNumericData(kpiText.shortLabel)}
       </div>
     );
   }
@@ -110,7 +116,7 @@ export const KpiTrendChart: React.FC<KpiChartProps> = ({
     return {
       idx,
       x: xAt(idx),
-      label: formatShortPtDate(rows[idx].Data),
+      label: formatShortDate(rows[idx].Data, lang),
       anchor: (t === 0 ? 'start' : t === xTickCount - 1 ? 'end' : 'middle') as
         | 'start'
         | 'middle'
@@ -125,22 +131,19 @@ export const KpiTrendChart: React.FC<KpiChartProps> = ({
   return (
     <div className="min-w-0 flex flex-col gap-2">
       <div className="flex flex-wrap items-center justify-between gap-2 min-h-6 text-caption text-muted tabular-nums">
-        <span>
-          Intervalo diário · Unidade: {meta.unit}
-          {showRollingMean ? ' · Linha tracejada: média móvel 7d' : ''}
-        </span>
+        <span>{t.trendSubtitle(meta.unit, showRollingMean)}</span>
         {hoveredRow ? (
           <span className="text-foreground font-medium">
-            {formatFullPtDate(hoveredRow.Data)} ·{' '}
-            {formatKpiNumber(hoveredVal, meta.decimals)} {meta.unit}
+            {formatFullDate(hoveredRow.Data, lang)} ·{' '}
+            {formatKpiNumber(hoveredVal, meta.decimals, lang)} {meta.unit}
             {hoveredRoll !== null
-              ? ` · MM7d: ${formatKpiNumber(hoveredRoll, meta.decimals)}`
+              ? ` · ${t.rollingShort}: ${formatKpiNumber(hoveredRoll, meta.decimals, lang)}`
               : ''}
-            {hoveredRow.kind === 'simulated' ? ' · Simulado' : ''}
-            {outlierIds.has(hoveredRow.id) ? ' · Fora de 1,5×IQR' : ''}
+            {hoveredRow.kind === 'simulated' ? ` · ${t.simulatedTag}` : ''}
+            {outlierIds.has(hoveredRow.id) ? ` · ${t.outlierTag}` : ''}
           </span>
         ) : (
-          <span>Passe o cursor sobre a curva para inspecionar o dia</span>
+          <span>{t.hoverPrompt}</span>
         )}
       </div>
 
@@ -148,7 +151,7 @@ export const KpiTrendChart: React.FC<KpiChartProps> = ({
         viewBox={`0 0 ${W} ${H}`}
         className="w-full h-auto select-none overflow-visible"
         role="img"
-        aria-label={`Gráfico de tendência temporal para ${meta.shortLabel} em ${meta.unit}`}
+        aria-label={`${kpiText.shortLabel} (${meta.unit})`}
         onMouseLeave={() => setHoverIdx(null)}
       >
         {/* Horizontal faint gridlines & Y ticks */}
@@ -171,7 +174,7 @@ export const KpiTrendChart: React.FC<KpiChartProps> = ({
               fill="var(--color-muted)"
               className="svg-halo tabular-nums"
             >
-              {formatKpiNumber(tk.val, meta.decimals > 1 ? 1 : meta.decimals)}
+              {formatKpiNumber(tk.val, meta.decimals > 1 ? 1 : meta.decimals, lang)}
             </text>
           </g>
         ))}
@@ -197,7 +200,7 @@ export const KpiTrendChart: React.FC<KpiChartProps> = ({
               fill="var(--color-positive)"
               className="svg-halo"
             >
-              Meta {formatKpiNumber(meta.target, 1)} {meta.unit}
+              {t.targetPrefix} {formatKpiNumber(meta.target, 1, lang)} {meta.unit}
             </text>
           </g>
         )}
@@ -313,10 +316,13 @@ export const KpiTrendChart: React.FC<KpiChartProps> = ({
 export const KpiBarChart: React.FC<KpiChartProps> = ({
   rows,
   kpi,
+  lang,
   highlightOutliers = true,
   onSelectDate,
 }) => {
   const meta = KPI_METADATA[kpi];
+  const kpiText = getKpiText(kpi, lang);
+  const t = TRANSLATIONS[lang];
   const [hoverIdx, setHoverIdx] = useState<number | null>(null);
 
   const outlierIds = useMemo(
@@ -345,33 +351,33 @@ export const KpiBarChart: React.FC<KpiChartProps> = ({
   if (rows.length === 0 || validNums.length === 0) {
     return (
       <div className="py-10 text-center text-body text-muted">
-        Sem registros numéricos para o gráfico de barras de {meta.shortLabel}.
+        {t.barNoNumericData(kpiText.shortLabel)}
       </div>
     );
   }
 
-  // Section 4: Bars ALWAYS start at zero
+  // Bars ALWAYS start at zero
   const yMin = 0;
   const rawMax = Math.max(...validNums, 1);
   const yMax = rawMax * 1.1;
 
-  const yTicks = [0, 0.25, 0.5, 0.75, 1].map((t) => {
-    const val = yMin + t * (yMax - yMin);
-    return { val, y: padT + plotH - t * plotH };
+  const yTicks = [0, 0.25, 0.5, 0.75, 1].map((tStep) => {
+    const val = yMin + tStep * (yMax - yMin);
+    return { val, y: padT + plotH - tStep * plotH };
   });
 
   const step = plotW / rows.length;
   const barW = Math.max(1.8, Math.min(28, step * 0.74));
 
   const xTickCount = Math.min(5, rows.length);
-  const xTicks = Array.from({ length: xTickCount }, (_, t) => {
+  const xTicks = Array.from({ length: xTickCount }, (_, tStep) => {
     const idx =
-      xTickCount === 1 ? 0 : Math.round((t / (xTickCount - 1)) * (rows.length - 1));
+      xTickCount === 1 ? 0 : Math.round((tStep / (xTickCount - 1)) * (rows.length - 1));
     return {
       idx,
       x: padL + idx * step + step / 2,
-      label: formatShortPtDate(rows[idx].Data),
-      anchor: (t === 0 ? 'start' : t === xTickCount - 1 ? 'end' : 'middle') as
+      label: formatShortDate(rows[idx].Data, lang),
+      anchor: (tStep === 0 ? 'start' : tStep === xTickCount - 1 ? 'end' : 'middle') as
         | 'start'
         | 'middle'
         | 'end',
@@ -384,14 +390,14 @@ export const KpiBarChart: React.FC<KpiChartProps> = ({
   return (
     <div className="min-w-0 flex flex-col gap-2">
       <div className="flex flex-wrap items-center justify-between gap-2 min-h-6 text-caption text-muted tabular-nums">
-        <span>Gráfico de barras diário (eixo base em zero · {meta.unit})</span>
+        <span>{t.barSubtitle(meta.unit)}</span>
         {hoveredRow ? (
           <span className="text-foreground font-medium">
-            {formatFullPtDate(hoveredRow.Data)} ·{' '}
-            {formatKpiNumber(hoveredVal, meta.decimals)} {meta.unit}
+            {formatFullDate(hoveredRow.Data, lang)} ·{' '}
+            {formatKpiNumber(hoveredVal, meta.decimals, lang)} {meta.unit}
           </span>
         ) : (
-          <span>{rows.length} dias exibidos</span>
+          <span>{t.daysShown(rows.length)}</span>
         )}
       </div>
 
@@ -399,7 +405,7 @@ export const KpiBarChart: React.FC<KpiChartProps> = ({
         viewBox={`0 0 ${W} ${H}`}
         className="w-full h-auto select-none overflow-visible"
         role="img"
-        aria-label={`Gráfico de barras diário para ${meta.shortLabel} em ${meta.unit}`}
+        aria-label={`${kpiText.shortLabel} (${meta.unit})`}
         onMouseLeave={() => setHoverIdx(null)}
       >
         {yTicks.map((tk, i) => (
@@ -421,7 +427,7 @@ export const KpiBarChart: React.FC<KpiChartProps> = ({
               fill="var(--color-muted)"
               className="svg-halo tabular-nums"
             >
-              {formatKpiNumber(tk.val, meta.decimals > 1 ? 1 : meta.decimals)}
+              {formatKpiNumber(tk.val, meta.decimals > 1 ? 1 : meta.decimals, lang)}
             </text>
           </g>
         ))}
@@ -479,19 +485,23 @@ export const KpiBarChart: React.FC<KpiChartProps> = ({
 
 export const BivariateScatterChart: React.FC<{
   regression: RegressionResult | null;
-}> = ({ regression }) => {
+  lang: LanguageMode;
+}> = ({ regression, lang }) => {
   const [hoverIdx, setHoverIdx] = useState<number | null>(null);
+  const t = TRANSLATIONS[lang];
 
   if (!regression || regression.points.length < 2) {
     return (
       <div className="py-12 text-center text-body text-muted">
-        Selecione pelo menos dois KPIs com registros válidos para visualizar a dispersão e a regressão linear.
+        {t.scatterEmpty}
       </div>
     );
   }
 
   const metaX = KPI_METADATA[regression.xKpi];
   const metaY = KPI_METADATA[regression.yKpi];
+  const textX = getKpiText(regression.xKpi, lang);
+  const textY = getKpiText(regression.yKpi, lang);
 
   const W = 540;
   const H = 310;
@@ -522,13 +532,13 @@ export const BivariateScatterChart: React.FC<{
   const lineStartY = regression.slope * minX + regression.intercept;
   const lineEndY = regression.slope * maxX + regression.intercept;
 
-  const xTicks = [0, 0.25, 0.5, 0.75, 1].map((t) => {
-    const val = x0 + t * (x1 - x0);
-    return { val, x: padL + t * plotW };
+  const xTicks = [0, 0.25, 0.5, 0.75, 1].map((tStep) => {
+    const val = x0 + tStep * (x1 - x0);
+    return { val, x: padL + tStep * plotW };
   });
-  const yTicks = [0, 0.25, 0.5, 0.75, 1].map((t) => {
-    const val = y0 + t * (y1 - y0);
-    return { val, y: padT + plotH - t * plotH };
+  const yTicks = [0, 0.25, 0.5, 0.75, 1].map((tStep) => {
+    const val = y0 + tStep * (y1 - y0);
+    return { val, y: padT + plotH - tStep * plotH };
   });
 
   const hovered = hoverIdx !== null ? regression.points[hoverIdx] : null;
@@ -538,13 +548,13 @@ export const BivariateScatterChart: React.FC<{
       <div className="flex flex-wrap items-center justify-between gap-2 text-caption text-muted tabular-nums">
         <span>
           r = {regression.r.toFixed(3)} · R² = {(regression.rSquared * 100).toFixed(1)}% · n ={' '}
-          {regression.n} dias
+          {regression.n} {t.daysUnit}
         </span>
         {hovered ? (
           <span className="text-foreground font-medium">
-            {formatFullPtDate(hovered.date)} · {metaX.shortLabel}:{' '}
-            {formatKpiNumber(hovered.x, metaX.decimals)} {metaX.unit} ·{' '}
-            {metaY.shortLabel}: {formatKpiNumber(hovered.y, metaY.decimals)} {metaY.unit}
+            {formatFullDate(hovered.date, lang)} · {textX.shortLabel}:{' '}
+            {formatKpiNumber(hovered.x, metaX.decimals, lang)} {metaX.unit} ·{' '}
+            {textY.shortLabel}: {formatKpiNumber(hovered.y, metaY.decimals, lang)} {metaY.unit}
           </span>
         ) : (
           <span>
@@ -560,7 +570,7 @@ export const BivariateScatterChart: React.FC<{
         viewBox={`0 0 ${W} ${H}`}
         className="w-full h-auto select-none overflow-visible"
         role="img"
-        aria-label={`Dispersão entre ${metaX.shortLabel} e ${metaY.shortLabel}`}
+        aria-label={`${textX.shortLabel} vs ${textY.shortLabel}`}
         onMouseLeave={() => setHoverIdx(null)}
       >
         {yTicks.map((tk, i) => (
@@ -582,7 +592,7 @@ export const BivariateScatterChart: React.FC<{
               fill="var(--color-muted)"
               className="svg-halo tabular-nums"
             >
-              {formatKpiNumber(tk.val, metaY.decimals > 1 ? 1 : metaY.decimals)}
+              {formatKpiNumber(tk.val, metaY.decimals > 1 ? 1 : metaY.decimals, lang)}
             </text>
           </g>
         ))}
@@ -606,7 +616,7 @@ export const BivariateScatterChart: React.FC<{
               fill="var(--color-muted)"
               className="svg-halo tabular-nums"
             >
-              {formatKpiNumber(tk.val, metaX.decimals > 1 ? 1 : metaX.decimals)}
+              {formatKpiNumber(tk.val, metaX.decimals > 1 ? 1 : metaX.decimals, lang)}
             </text>
           </g>
         ))}
@@ -620,7 +630,7 @@ export const BivariateScatterChart: React.FC<{
           fill="var(--color-foreground)"
           className="svg-halo"
         >
-          {metaX.shortLabel} ({metaX.unit})
+          {textX.shortLabel} ({metaX.unit})
         </text>
 
         {/* OLS Regression Line */}

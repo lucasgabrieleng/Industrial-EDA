@@ -125,10 +125,24 @@ export function formatShortPtDate(dateStr: string): string {
   return `${parts[2]}/${parts[1]}`;
 }
 
+export function formatShortDate(dateStr: string, lang: 'en' | 'pt' = 'en'): string {
+  const parts = dateStr.split('-');
+  if (parts.length !== 3) return dateStr;
+  return lang === 'pt' ? `${parts[2]}/${parts[1]}` : `${parts[1]}/${parts[2]}`;
+}
+
 export function formatFullPtDate(dateStr: string): string {
   const parts = dateStr.split('-');
   if (parts.length !== 3) return dateStr;
   return `${parts[2]}/${parts[1]}/${parts[0]}`;
+}
+
+export function formatFullDate(dateStr: string, lang: 'en' | 'pt' = 'en'): string {
+  const parts = dateStr.split('-');
+  if (parts.length !== 3) return dateStr;
+  return lang === 'pt'
+    ? `${parts[2]}/${parts[1]}/${parts[0]}`
+    : `${parts[1]}/${parts[2]}/${parts[0]}`;
 }
 
 // Deterministic pseudo-random generator so initial seeded records are reproducible and realistic

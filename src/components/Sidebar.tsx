@@ -4,6 +4,7 @@ import {
   BarChart3,
   Database,
   ImagePlus,
+  Languages,
   Moon,
   Pause,
   Play,
@@ -12,10 +13,17 @@ import {
   X,
 } from 'lucide-react';
 import {
+  TRANSLATIONS,
+  getKpiText,
+  translateManagementName,
+  translatePlantName,
+} from '../i18n/translations';
+import {
   ALL_KPIS,
   KPI_METADATA,
   WorkspaceView,
   type KpiKey,
+  type LanguageMode,
   type ThemeMode,
 } from '../types/eda';
 import { Button, Field, inputClassName, selectClassName } from './ui';
@@ -46,15 +54,11 @@ interface SidebarProps {
   onCustomLogoUpload: (dataUrl: string | null) => void;
   theme: ThemeMode;
   onChangeTheme: (theme: ThemeMode) => void;
+  lang: LanguageMode;
+  onChangeLang: (lang: LanguageMode) => void;
   mobileOpen: boolean;
   onCloseMobile: () => void;
 }
-
-const NAV_ITEMS: { id: WorkspaceView; label: string; icon: React.FC<{ className?: string }> }[] = [
-  { id: WorkspaceView.OVERVIEW, label: 'Tendências e KPIs', icon: BarChart3 },
-  { id: WorkspaceView.CORRELATION, label: 'Correlação e estatísticas', icon: Activity },
-  { id: WorkspaceView.DATASET, label: 'Base Excel e registros', icon: Database },
-];
 
 export const Sidebar: React.FC<SidebarProps> = ({
   activeView,
@@ -82,11 +86,24 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onCustomLogoUpload,
   theme,
   onChangeTheme,
+  lang,
+  onChangeLang,
   mobileOpen,
   onCloseMobile,
 }) => {
   const [logoFailed, setLogoFailed] = useState(false);
   const logoInputRef = useRef<HTMLInputElement>(null);
+  const t = TRANSLATIONS[lang];
+
+  const navItems: {
+    id: WorkspaceView;
+    label: string;
+    icon: React.FC<{ className?: string }>;
+  }[] = [
+    { id: WorkspaceView.OVERVIEW, label: t.navOverview, icon: BarChart3 },
+    { id: WorkspaceView.CORRELATION, label: t.navCorrelation, icon: Activity },
+    { id: WorkspaceView.DATASET, label: t.navDataset, icon: Database },
+  ];
 
   const handleLogoFile = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -104,14 +121,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
   const sidebarContent = (
     <div className="flex flex-col divide-y divide-border/60 text-foreground">
-      {/* Brand & Optional Company Logo Upload */}
+      {/* Brand, Logo Upload, Theme & Language Controls */}
       <div className="p-4 flex flex-col gap-3">
         <div className="flex items-center justify-between gap-2">
           <div className="min-w-0 flex-1 flex items-center gap-2.5">
             {logoUrl && !logoFailed ? (
               <img
                 src={logoUrl}
-                alt="Logomarca personalizada para relatório"
+                alt={t.customLogoAlt}
                 referrerPolicy="no-referrer"
                 onError={() => setLogoFailed(true)}
                 className="h-7 w-auto max-w-[195px] object-contain object-left"
@@ -148,7 +165,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
             <button
               type="button"
               onClick={onCloseMobile}
-              aria-label="Fechar painel lateral"
+              aria-label={t.closeDrawer}
               className="md:hidden min-h-9 min-w-9 inline-flex items-center justify-center rounded-control text-muted hover:text-foreground hover:bg-background cursor-pointer"
             >
               <X className="w-4 h-4" />
@@ -157,9 +174,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         </div>
 
         <div className="flex items-center justify-between gap-2">
-          <span className="text-caption text-muted">
-            v2.0 · Planta Digital &amp; KPIs
-          </span>
+          <span className="text-caption text-muted">{t.subtitle}</span>
           <input
             ref={logoInputRef}
             type="file"
@@ -178,7 +193,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 }}
                 className="text-caption text-muted hover:text-foreground cursor-pointer whitespace-nowrap"
               >
-                Remover
+                {t.removeLogo}
               </button>
             )}
             <button
@@ -187,49 +202,84 @@ export const Sidebar: React.FC<SidebarProps> = ({
               className="inline-flex items-center gap-1.5 text-caption font-medium text-primary hover:underline cursor-pointer whitespace-nowrap"
             >
               <ImagePlus className="w-3.5 h-3.5" />
-              Logo no PDF
+              {t.logoPdf}
             </button>
           </div>
         </div>
 
-        {/* Two-option Light / Dark Theme Switcher */}
-        <div
-          role="group"
-          aria-label="Tema da interface"
-          className="grid grid-cols-2 gap-1.5 pt-1"
-        >
-          <button
-            type="button"
-            aria-pressed={theme === 'light'}
-            onClick={() => onChangeTheme('light')}
-            className={`min-h-9 px-2.5 rounded-control border inline-flex items-center justify-center gap-1.5 text-caption font-medium transition-[background-color,color,border-color] duration-150 cursor-pointer whitespace-nowrap focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-primary ${
-              theme === 'light'
-                ? 'bg-primary text-primary-foreground border-primary'
-                : 'bg-surface text-foreground border-border hover:bg-background'
-            }`}
+        {/* Light / Dark Theme Switcher + English / Portuguese Switcher */}
+        <div className="flex flex-col gap-2 pt-1">
+          <div
+            role="group"
+            aria-label={t.themeGroupLabel}
+            className="grid grid-cols-2 gap-1.5"
           >
-            <Sun className="w-3.5 h-3.5 shrink-0" />
-            Modo Claro
-          </button>
-          <button
-            type="button"
-            aria-pressed={theme === 'dark'}
-            onClick={() => onChangeTheme('dark')}
-            className={`min-h-9 px-2.5 rounded-control border inline-flex items-center justify-center gap-1.5 text-caption font-medium transition-[background-color,color,border-color] duration-150 cursor-pointer whitespace-nowrap focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-primary ${
-              theme === 'dark'
-                ? 'bg-primary text-primary-foreground border-primary'
-                : 'bg-surface text-foreground border-border hover:bg-background'
-            }`}
+            <button
+              type="button"
+              aria-pressed={theme === 'light'}
+              onClick={() => onChangeTheme('light')}
+              className={`min-h-9 px-2.5 rounded-control border inline-flex items-center justify-center gap-1.5 text-caption font-medium transition-[background-color,color,border-color] duration-150 cursor-pointer whitespace-nowrap focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-primary ${
+                theme === 'light'
+                  ? 'bg-primary text-primary-foreground border-primary'
+                  : 'bg-surface text-foreground border-border hover:bg-background'
+              }`}
+            >
+              <Sun className="w-3.5 h-3.5 shrink-0" />
+              {t.lightMode}
+            </button>
+            <button
+              type="button"
+              aria-pressed={theme === 'dark'}
+              onClick={() => onChangeTheme('dark')}
+              className={`min-h-9 px-2.5 rounded-control border inline-flex items-center justify-center gap-1.5 text-caption font-medium transition-[background-color,color,border-color] duration-150 cursor-pointer whitespace-nowrap focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-primary ${
+                theme === 'dark'
+                  ? 'bg-primary text-primary-foreground border-primary'
+                  : 'bg-surface text-foreground border-border hover:bg-background'
+              }`}
+            >
+              <Moon className="w-3.5 h-3.5 shrink-0" />
+              {t.darkMode}
+            </button>
+          </div>
+
+          <div
+            role="group"
+            aria-label={t.langGroupLabel}
+            className="grid grid-cols-2 gap-1.5"
           >
-            <Moon className="w-3.5 h-3.5 shrink-0" />
-            Modo Escuro
-          </button>
+            <button
+              type="button"
+              aria-pressed={lang === 'en'}
+              onClick={() => onChangeLang('en')}
+              className={`min-h-9 px-2.5 rounded-control border inline-flex items-center justify-center gap-1.5 text-caption font-medium transition-[background-color,color,border-color] duration-150 cursor-pointer whitespace-nowrap focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-primary ${
+                lang === 'en'
+                  ? 'bg-primary text-primary-foreground border-primary'
+                  : 'bg-surface text-foreground border-border hover:bg-background'
+              }`}
+            >
+              <Languages className="w-3.5 h-3.5 shrink-0" />
+              English
+            </button>
+            <button
+              type="button"
+              aria-pressed={lang === 'pt'}
+              onClick={() => onChangeLang('pt')}
+              className={`min-h-9 px-2.5 rounded-control border inline-flex items-center justify-center gap-1.5 text-caption font-medium transition-[background-color,color,border-color] duration-150 cursor-pointer whitespace-nowrap focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-primary ${
+                lang === 'pt'
+                  ? 'bg-primary text-primary-foreground border-primary'
+                  : 'bg-surface text-foreground border-border hover:bg-background'
+              }`}
+            >
+              <Languages className="w-3.5 h-3.5 shrink-0" />
+              Português
+            </button>
+          </div>
         </div>
       </div>
 
       {/* Primary Workspace Navigation */}
-      <nav aria-label="Visualizações da plataforma" className="p-3 flex flex-col gap-1">
-        {NAV_ITEMS.map((item) => {
+      <nav aria-label={t.navLabel} className="p-3 flex flex-col gap-1">
+        {navItems.map((item) => {
           const Icon = item.icon;
           const isCurrent = activeView === item.id;
           return (
@@ -254,13 +304,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
         })}
       </nav>
 
-      {/* Correlated Hierarchy: Gerência -> Planta */}
+      {/* Correlated Hierarchy: Management -> Plant */}
       <div className="p-4 flex flex-col gap-3.5">
         <h2 className="text-label font-semibold text-foreground">
-          Unidade industrial
+          {t.industrialUnit}
         </h2>
 
-        <Field label="Gerência" htmlFor="select-gerencia">
+        <Field label={t.management} htmlFor="select-gerencia">
           <select
             id="select-gerencia"
             value={selectedGerencia}
@@ -269,16 +319,18 @@ export const Sidebar: React.FC<SidebarProps> = ({
           >
             {gerencias.map((g) => (
               <option key={g} value={g}>
-                {g}
+                {translateManagementName(g, lang)}
               </option>
             ))}
           </select>
         </Field>
 
         <Field
-          label="Planta"
+          label={t.plant}
           htmlFor="select-planta"
-          hint={`${plantas.length} ${plantas.length === 1 ? 'unidade' : 'unidades'}`}
+          hint={`${plantas.length} ${
+            plantas.length === 1 ? t.unitSingular : t.unitPlural
+          }`}
         >
           <select
             id="select-planta"
@@ -288,7 +340,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           >
             {plantas.map((p) => (
               <option key={p} value={p}>
-                {p}
+                {translatePlantName(p, lang)}
               </option>
             ))}
           </select>
@@ -299,21 +351,22 @@ export const Sidebar: React.FC<SidebarProps> = ({
       <div className="p-4 flex flex-col gap-3">
         <div className="flex items-baseline justify-between gap-2">
           <h2 className="text-label font-semibold text-foreground">
-            KPIs selecionados
+            {t.selectedKpis}
           </h2>
           <button
             type="button"
             onClick={onSelectAllKpis}
             className="text-caption font-medium text-primary hover:underline cursor-pointer whitespace-nowrap"
           >
-            Selecionar todos
+            {t.selectAll}
           </button>
         </div>
 
-        <div className="flex flex-wrap gap-1.5" role="group" aria-label="Seleção de KPIs">
+        <div className="flex flex-wrap gap-1.5" role="group" aria-label={t.selectedKpis}>
           {ALL_KPIS.map((kpi) => {
             const active = selectedKpis.includes(kpi);
             const meta = KPI_METADATA[kpi];
+            const kpiText = getKpiText(kpi, lang);
             return (
               <button
                 key={kpi}
@@ -326,7 +379,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     : 'bg-surface text-foreground border-border hover:bg-background'
                 }`}
               >
-                {meta.shortLabel} ({meta.unit})
+                {kpiText.shortLabel} ({meta.unit})
               </button>
             );
           })}
@@ -336,16 +389,16 @@ export const Sidebar: React.FC<SidebarProps> = ({
       {/* Date Range Controls */}
       <div className="p-4 flex flex-col gap-3">
         <h2 className="text-label font-semibold text-foreground">
-          Intervalo de datas
+          {t.dateRange}
         </h2>
 
-        <div className="flex flex-wrap gap-1.5" role="group" aria-label="Atalhos de período">
+        <div className="flex flex-wrap gap-1.5" role="group" aria-label={t.dateRange}>
           {(
             [
               { label: '30d', val: 30 },
               { label: '60d', val: 60 },
               { label: '90d', val: 90 },
-              { label: 'Tudo', val: 'all' },
+              { label: t.quickAll, val: 'all' },
             ] as const
           ).map((preset) => (
             <button
@@ -360,7 +413,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         </div>
 
         <div className="grid grid-cols-1 gap-2.5">
-          <Field label="Data inicial" htmlFor="filter-start-date">
+          <Field label={t.startDate} htmlFor="filter-start-date">
             <input
               id="filter-start-date"
               type="date"
@@ -373,7 +426,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
               className={`${inputClassName} tabular-nums`}
             />
           </Field>
-          <Field label="Data final" htmlFor="filter-end-date">
+          <Field label={t.endDate} htmlFor="filter-end-date">
             <input
               id="filter-end-date"
               type="date"
@@ -393,14 +446,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
       <div className="p-4 flex flex-col gap-3">
         <div className="flex items-baseline justify-between gap-2">
           <h2 className="text-label font-semibold text-foreground">
-            Telemetria em tempo real
+            {t.realtimeTitle}
           </h2>
           <span className="text-caption text-muted tabular-nums">
-            {isRealtimeActive ? 'Ativo (2s)' : 'Pausado'}
+            {isRealtimeActive ? t.realtimeActive : t.realtimePaused}
           </span>
         </div>
         <p className="text-caption text-muted">
-          Simula fechamentos contínuos de turno para {selectedPlanta} e recalcula matrizes ao vivo.
+          {t.realtimeDesc(translatePlantName(selectedPlanta, lang))}
         </p>
         <div className="flex flex-wrap items-center gap-2">
           <Button
@@ -412,12 +465,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
             {isRealtimeActive ? (
               <>
                 <Pause className="w-3.5 h-3.5" />
-                Pausar fluxo
+                {t.pauseStream}
               </>
             ) : (
               <>
                 <Play className="w-3.5 h-3.5" />
-                Iniciar fluxo ao vivo
+                {t.startStream}
               </>
             )}
           </Button>
@@ -426,11 +479,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
               tone="quiet"
               size="sm"
               onClick={onClearSimulated}
-              aria-label="Limpar leituras simuladas"
-              title="Remover leituras simuladas"
+              aria-label={t.clearSimulatedAria}
+              title={t.clearSimulatedAria}
             >
               <RotateCcw className="w-3.5 h-3.5" />
-              Limpar ({simulatedCount})
+              {t.clearSimulated(simulatedCount)}
             </Button>
           )}
         </div>
@@ -440,18 +493,16 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
   return (
     <>
-      {/* Desktop persistent sidebar */}
       <aside className="hidden md:block w-80 shrink-0 border-r border-border/70 bg-surface self-stretch">
         <div className="sticky top-0">{sidebarContent}</div>
       </aside>
 
-      {/* Mobile slide-over drawer */}
       {mobileOpen && (
         <div
           className="fixed inset-0 z-50 md:hidden flex"
           role="dialog"
           aria-modal="true"
-          aria-label="Filtros e navegação"
+          aria-label={t.openDrawer}
         >
           <div
             className="fixed inset-0 bg-foreground/35"

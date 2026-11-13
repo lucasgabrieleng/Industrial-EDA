@@ -1,12 +1,19 @@
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import { formatFullPtDate, formatShortPtDate } from '../data/mockIndustrialData';
+import { formatFullDate, formatShortDate } from '../data/mockIndustrialData';
+import {
+  TRANSLATIONS,
+  getKpiText,
+  translateManagementName,
+  translatePlantName,
+} from '../i18n/translations';
 import {
   KPI_METADATA,
   type CorrelationMatrix,
   type DescriptiveStats,
   type IndustrialRecord,
   type KpiKey,
+  type LanguageMode,
 } from '../types/eda';
 import { formatKpiNumber } from './statistics';
 
@@ -68,8 +75,10 @@ function getDivergingHeatmapRgb(r: number | null): { bg: string; fg: string } {
 
 function renderCorrelationHeatmapCanvas(
   kpis: KpiKey[],
-  matrix: CorrelationMatrix
+  matrix: CorrelationMatrix,
+  lang: LanguageMode
 ): string {
+  const t = TRANSLATIONS[lang];
   const scale = 2;
   const width = 760;
   const height = 420;
@@ -95,16 +104,17 @@ function renderCorrelationHeatmapCanvas(
   ctx.font = '600 14px sans-serif';
   ctx.fillStyle = '#18222d';
   ctx.textAlign = 'left';
-  ctx.fillText('Heatmap da Matriz de Correlação de Pearson (r)', leftPad, 26);
+  ctx.fillText(t.pdfHeatmapTitle, leftPad, 26);
 
   kpis.forEach((rowKpi, rIdx) => {
+    const label = getKpiText(rowKpi, lang).shortLabel;
     // Row label
     ctx.font = '500 11px sans-serif';
     ctx.fillStyle = '#2d3a48';
     ctx.textAlign = 'right';
     ctx.textBaseline = 'middle';
     ctx.fillText(
-      KPI_METADATA[rowKpi].shortLabel,
+      label,
       leftPad - 12,
       topPad + rIdx * cellH + cellH / 2
     );
@@ -115,7 +125,7 @@ function renderCorrelationHeatmapCanvas(
     ctx.font = '500 11px sans-serif';
     ctx.fillStyle = '#2d3a48';
     ctx.textAlign = 'center';
-    ctx.fillText(KPI_METADATA[rowKpi].shortLabel, 0, 0);
+    ctx.fillText(label, 0, 0);
     ctx.restore();
 
     kpis.forEach((colKpi, cIdx) => {
@@ -145,8 +155,14 @@ function renderCorrelationHeatmapCanvas(
   return canvas.toDataURL('image/png');
 }
 
-function renderKpiDualChartCanvas(rows: IndustrialRecord[], kpi: KpiKey): string {
+function renderKpiDualChartCanvas(
+  rows: IndustrialRecord[],
+  kpi: KpiKey,
+  lang: LanguageMode
+): string {
   const meta = KPI_METADATA[kpi];
+  const kpiText = getKpiText(kpi, lang);
+  const t = TRANSLATIONS[lang];
   const scale = 2;
   const width = 820;
   const height = 270;
@@ -184,14 +200,14 @@ function renderKpiDualChartCanvas(rows: IndustrialRecord[], kpi: KpiKey): string
     if (valid.length === 0) {
       ctx.font = '400 11px sans-serif';
       ctx.fillStyle = '#606f7d';
-      ctx.fillText('Sem dados no intervalo', offsetX + padL, padT + plotH / 2);
+      ctx.fillText(t.pdfNoData, offsetX + padL, padT + plotH / 2);
       return;
     }
 
     const vals = valid.map((d) => d.val);
     const maxVal = Math.max(...vals);
     const rawMin = Math.min(...vals);
-    // Bars always start at 0 per Section 4
+    // Bars always start at 0
     const yMin = mode === 'bar' ? 0 : Math.max(0, rawMin - (maxVal - rawMin || 1) * 0.12);
     const yMax = maxVal + (maxVal - yMin || 1) * 0.1;
 
@@ -212,7 +228,7 @@ function renderKpiDualChartCanvas(rows: IndustrialRecord[], kpi: KpiKey): string
       ctx.textAlign = 'right';
       ctx.textBaseline = 'middle';
       ctx.fillText(
-        formatKpiNumber(tickVal, meta.decimals > 1 ? 1 : meta.decimals),
+        formatKpiNumber(tickVal, meta.decimals > 1 ? 1 : meta.decimals, lang),
         offsetX + padL - 6,
         y
       );
@@ -246,24 +262,24 @@ function renderKpiDualChartCanvas(rows: IndustrialRecord[], kpi: KpiKey): string
 
     // Up to 4 X-axis date labels
     const tickCount = Math.min(4, valid.length);
-    for (let t = 0; t < tickCount; t++) {
+    for (let tIdx = 0; tIdx < tickCount; tIdx++) {
       const idx =
         tickCount === 1
           ? 0
-          : Math.round((t / (tickCount - 1)) * (valid.length - 1));
+          : Math.round((tIdx / (tickCount - 1)) * (valid.length - 1));
       const x =
         offsetX +
         padL +
         (valid.length === 1 ? plotW / 2 : (idx / (valid.length - 1)) * plotW);
       ctx.font = '400 10px sans-serif';
       ctx.fillStyle = '#53606e';
-      ctx.textAlign = t === 0 ? 'left' : t === tickCount - 1 ? 'right' : 'center';
-      ctx.fillText(formatShortPtDate(valid[idx].date), x, padT + plotH + 18);
+      ctx.textAlign = tIdx === 0 ? 'left' : tIdx === tickCount - 1 ? 'right' : 'center';
+      ctx.fillText(formatShortDate(valid[idx].date, lang), x, padT + plotH + 18);
     }
   };
 
-  drawPanel(0, 405, 'line', `Tendência · ${meta.shortLabel} (${meta.unit})`);
-  drawPanel(415, 405, 'bar', `Distribuição Diária · ${meta.shortLabel} (${meta.unit})`);
+  drawPanel(0, 405, 'line', `${t.pdfTrendPrefix} · ${kpiText.shortLabel} (${meta.unit})`);
+  drawPanel(415, 405, 'bar', `${t.pdfBarPrefix} · ${kpiText.shortLabel} (${meta.unit})`);
 
   return canvas.toDataURL('image/png');
 }
@@ -278,6 +294,7 @@ export interface PdfExportPayload {
   stats: DescriptiveStats[];
   corrMatrix: CorrelationMatrix;
   logoUrl: string | null;
+  lang: LanguageMode;
 }
 
 export async function generateIndustrialPdfReport(payload: PdfExportPayload): Promise<void> {
@@ -291,7 +308,11 @@ export async function generateIndustrialPdfReport(payload: PdfExportPayload): Pr
     stats,
     corrMatrix,
     logoUrl,
+    lang,
   } = payload;
+  const t = TRANSLATIONS[lang];
+  const displayGerencia = translateManagementName(gerencia, lang);
+  const displayPlanta = translatePlantName(planta, lang);
 
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
   const pageWidth = doc.internal.pageSize.getWidth();
@@ -311,16 +332,24 @@ export async function generateIndustrialPdfReport(payload: PdfExportPayload): Pr
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(15);
   doc.setTextColor(24, 34, 45);
-  doc.text('Exploratory Data Analysis — Industrial KPI Report', 14, cursorY);
+  doc.text(t.pdfTitle, 14, cursorY);
   cursorY += 7;
 
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(9.5);
   doc.setTextColor(72, 85, 99);
-  doc.text(`Gerência: ${gerencia}   |   Planta: ${planta}`, 14, cursorY);
-  cursorY += 5;
   doc.text(
-    `Período analisado: ${formatFullPtDate(startDate)} a ${formatFullPtDate(endDate)} (${rows.length} registros)   |   KPIs: ${kpis.join(', ')}`,
+    `${t.pdfManagement}: ${displayGerencia}   |   ${t.pdfPlant}: ${displayPlanta}`,
+    14,
+    cursorY
+  );
+  cursorY += 5;
+  const kpiListText = kpis.map((k) => getKpiText(k, lang).shortLabel).join(', ');
+  doc.text(
+    `${t.pdfPeriod}: ${formatFullDate(startDate, lang)} ${t.to} ${formatFullDate(
+      endDate,
+      lang
+    )} (${rows.length} ${t.pdfRecords})   |   KPIs: ${kpiListText}`,
     14,
     cursorY
   );
@@ -330,36 +359,36 @@ export async function generateIndustrialPdfReport(payload: PdfExportPayload): Pr
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(11);
   doc.setTextColor(24, 34, 45);
-  doc.text('1. Estatísticas Descritivas (describe)', 14, cursorY);
+  doc.text(t.pdfSec1, 14, cursorY);
   cursorY += 3;
 
   autoTable(doc, {
     startY: cursorY,
     head: [
       [
-        'KPI (Unidade)',
-        'Contagem',
-        'Média',
-        'Desv. Padrão',
-        'Mínimo',
+        t.colKpiUnit,
+        t.pdfCountCol,
+        t.colMean,
+        t.colStd,
+        t.colMin,
         '25%',
-        'Mediana (50%)',
+        t.colMedian,
         '75%',
-        'Máximo',
+        t.colMax,
       ],
     ],
     body: stats.map((s) => {
       const meta = KPI_METADATA[s.kpi];
       return [
-        `${meta.shortLabel} (${meta.unit})`,
+        `${getKpiText(s.kpi, lang).shortLabel} (${meta.unit})`,
         String(s.count),
-        formatKpiNumber(s.mean, meta.decimals),
-        formatKpiNumber(s.std, meta.decimals),
-        formatKpiNumber(s.min, meta.decimals),
-        formatKpiNumber(s.q25, meta.decimals),
-        formatKpiNumber(s.median, meta.decimals),
-        formatKpiNumber(s.q75, meta.decimals),
-        formatKpiNumber(s.max, meta.decimals),
+        formatKpiNumber(s.mean, meta.decimals, lang),
+        formatKpiNumber(s.std, meta.decimals, lang),
+        formatKpiNumber(s.min, meta.decimals, lang),
+        formatKpiNumber(s.q25, meta.decimals, lang),
+        formatKpiNumber(s.median, meta.decimals, lang),
+        formatKpiNumber(s.q75, meta.decimals, lang),
+        formatKpiNumber(s.max, meta.decimals, lang),
       ];
     }),
     styles: { fontSize: 8, cellPadding: 2.2 },
@@ -379,10 +408,10 @@ export async function generateIndustrialPdfReport(payload: PdfExportPayload): Pr
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(11);
     doc.setTextColor(24, 34, 45);
-    doc.text('2. Matriz de Correlação de Pearson', 14, cursorY);
+    doc.text(t.pdfSec2, 14, cursorY);
     cursorY += 4;
 
-    const heatmapImg = renderCorrelationHeatmapCanvas(kpis, corrMatrix);
+    const heatmapImg = renderCorrelationHeatmapCanvas(kpis, corrMatrix, lang);
     const imgW = pageWidth - 28;
     const imgH = (imgW * 420) / 760;
     doc.addImage(heatmapImg, 'PNG', 14, cursorY, imgW, imgH);
@@ -395,11 +424,11 @@ export async function generateIndustrialPdfReport(payload: PdfExportPayload): Pr
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(11);
   doc.setTextColor(24, 34, 45);
-  doc.text('3. Tendência Temporal e Gráfico de Barras por KPI', 14, cursorY);
+  doc.text(t.pdfSec3, 14, cursorY);
   cursorY += 6;
 
   for (const kpi of kpis) {
-    const chartImg = renderKpiDualChartCanvas(rows, kpi);
+    const chartImg = renderKpiDualChartCanvas(rows, kpi, lang);
     const imgW = pageWidth - 28;
     const imgH = (imgW * 270) / 820;
     if (cursorY + imgH > pageHeight - 18) {
@@ -410,27 +439,29 @@ export async function generateIndustrialPdfReport(payload: PdfExportPayload): Pr
     cursorY += imgH + 6;
   }
 
-  // Section 4: Exploratory Data Sample Table (latest 35 records)
+  // Section 4: Exploratory Data Sample Table (latest 40 records)
   doc.addPage();
   cursorY = 18;
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(11);
   doc.setTextColor(24, 34, 45);
-  doc.text(
-    `4. Base Filtrada — Análise Exploratória (${Math.min(rows.length, 40)} registros mais recentes)`,
-    14,
-    cursorY
-  );
+  doc.text(t.pdfSec4(Math.min(rows.length, 40)), 14, cursorY);
   cursorY += 3;
 
   const sampleRows = [...rows].slice(-40).reverse();
   autoTable(doc, {
     startY: cursorY,
-    head: [['Data', 'Planta', ...kpis.map((k) => `${KPI_METADATA[k].shortLabel} (${KPI_METADATA[k].unit})`)]],
+    head: [
+      [
+        t.colDate,
+        t.pdfPlant,
+        ...kpis.map((k) => `${getKpiText(k, lang).shortLabel} (${KPI_METADATA[k].unit})`),
+      ],
+    ],
     body: sampleRows.map((r) => [
-      formatFullPtDate(r.Data),
-      r.Planta,
-      ...kpis.map((k) => formatKpiNumber(r[k], KPI_METADATA[k].decimals)),
+      formatFullDate(r.Data, lang),
+      translatePlantName(r.Planta, lang),
+      ...kpis.map((k) => formatKpiNumber(r[k], KPI_METADATA[k].decimals, lang)),
     ]),
     styles: { fontSize: 7.5, cellPadding: 2 },
     headStyles: { fillColor: [31, 94, 142], textColor: 255 },
@@ -445,13 +476,14 @@ export async function generateIndustrialPdfReport(payload: PdfExportPayload): Pr
     doc.setFontSize(8);
     doc.setTextColor(115, 126, 138);
     doc.text(
-      `Industrial EDA Studio — Exploratory Data Analysis   |   Página ${p} de ${totalPages}`,
+      t.pdfFooter(p, totalPages),
       pageWidth / 2,
       pageHeight - 8,
       { align: 'center' }
     );
   }
 
-  const safePlant = planta.replace(/[^a-zA-Z0-9_-]/g, '_');
-  doc.save(`Analise_EDA_${safePlant}_${startDate}_${endDate}.pdf`);
+  const safePlant = displayPlanta.replace(/[^a-zA-Z0-9_-]/g, '_');
+  const prefix = lang === 'pt' ? 'Analise_EDA' : 'EDA_Report';
+  doc.save(`${prefix}_${safePlant}_${startDate}_${endDate}.pdf`);
 }

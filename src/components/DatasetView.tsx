@@ -9,12 +9,19 @@ import {
   Trash2,
   Upload,
 } from 'lucide-react';
-import { formatFullPtDate, formatLocalDate } from '../data/mockIndustrialData';
+import { formatFullDate, formatLocalDate } from '../data/mockIndustrialData';
+import {
+  TRANSLATIONS,
+  getKpiText,
+  translateManagementName,
+  translatePlantName,
+} from '../i18n/translations';
 import {
   ALL_KPIS,
   KPI_METADATA,
   type IndustrialRecord,
   type KpiKey,
+  type LanguageMode,
 } from '../types/eda';
 import {
   exportRecordsToCsv,
@@ -31,6 +38,7 @@ interface DatasetViewProps {
   selectedPlanta: string;
   selectedKpis: KpiKey[];
   highlightedDate: string | null;
+  lang: LanguageMode;
   onClearHighlightedDate: () => void;
   onImportRecords: (records: IndustrialRecord[], sourceName: string) => void;
   onAddRecord: (record: IndustrialRecord) => void;
@@ -47,12 +55,16 @@ export const DatasetView: React.FC<DatasetViewProps> = ({
   selectedPlanta,
   selectedKpis,
   highlightedDate,
+  lang,
   onClearHighlightedDate,
   onImportRecords,
   onAddRecord,
   onDeleteRecord,
   onResetDefaultDataset,
 }) => {
+  const t = TRANSLATIONS[lang];
+  const displayPlant = translatePlantName(selectedPlanta, lang);
+
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [isParsing, setIsParsing] = useState(false);
@@ -78,18 +90,14 @@ export const DatasetView: React.FC<DatasetViewProps> = ({
     setStatusNote(null);
     setIsParsing(true);
     try {
-      const result = await parseIndustrialSpreadsheet(file);
+      const result = await parseIndustrialSpreadsheet(file, lang);
       onImportRecords(result.records, file.name);
       setStatusNote(
-        `Planilha "${file.name}" carregada (${result.records.length} registros válidos${
-          result.skippedRows > 0 ? `, ${result.skippedRows} ignorados` : ''
-        }).`
+        t.parseSuccess(file.name, result.records.length, result.skippedRows)
       );
     } catch (err) {
       setUploadError(
-        err instanceof Error
-          ? err.message
-          : 'Erro ao processar a planilha Excel/CSV.'
+        err instanceof Error ? err.message : t.parseErrorFallback
       );
     } finally {
       setIsParsing(false);
@@ -120,9 +128,7 @@ export const DatasetView: React.FC<DatasetViewProps> = ({
 
     onAddRecord(record);
     setShowAddForm(false);
-    setStatusNote(
-      `Registro diário de ${formatFullPtDate(record.Data)} adicionado em ${selectedPlanta}.`
-    );
+    setStatusNote(t.manualAdded(formatFullDate(record.Data, lang), displayPlant));
   };
 
   const sortedRows = useMemo(() => {
@@ -132,9 +138,11 @@ export const DatasetView: React.FC<DatasetViewProps> = ({
       if (!q) return true;
       return (
         r.Data.includes(q) ||
-        formatFullPtDate(r.Data).includes(q) ||
+        formatFullDate(r.Data, lang).includes(q) ||
         r.Planta.toLowerCase().includes(q) ||
-        r.Gerencia.toLowerCase().includes(q)
+        translatePlantName(r.Planta, lang).toLowerCase().includes(q) ||
+        r.Gerencia.toLowerCase().includes(q) ||
+        translateManagementName(r.Gerencia, lang).toLowerCase().includes(q)
       );
     });
 
@@ -149,7 +157,7 @@ export const DatasetView: React.FC<DatasetViewProps> = ({
       return sortAsc ? va - vb : vb - va;
     });
     return base;
-  }, [filteredRows, searchQuery, sortKey, sortAsc, highlightedDate]);
+  }, [filteredRows, searchQuery, sortKey, sortAsc, highlightedDate, lang]);
 
   const displayedRows = sortedRows.slice(0, visibleLimit);
 
@@ -168,12 +176,8 @@ export const DatasetView: React.FC<DatasetViewProps> = ({
       <Surface className="divide-y divide-border/60">
         <div className="p-5 flex flex-wrap items-center justify-between gap-4">
           <div className="min-w-0">
-            <h2 className="text-title text-foreground">
-              Ingestão de planilha Excel (.xlsx) ou CSV
-            </h2>
-            <p className="text-caption text-muted">
-              Compatível com as colunas originais: Data, Gerencia, Planta, Produção, OEE, Disponibilidade, Qualidade, Consumo especifico e Custos
-            </p>
+            <h2 className="text-title text-foreground">{t.excelTitle}</h2>
+            <p className="text-caption text-muted">{t.excelSubtitle}</p>
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
@@ -188,7 +192,7 @@ export const DatasetView: React.FC<DatasetViewProps> = ({
               }
             >
               <FileSpreadsheet className="w-4 h-4" />
-              Baixar base modelo (.xlsx)
+              {t.downloadMockExcel}
             </Button>
             <Button
               tone="quiet"
@@ -201,20 +205,18 @@ export const DatasetView: React.FC<DatasetViewProps> = ({
               }
             >
               <Download className="w-4 h-4" />
-              Exportar recorte (.csv)
+              {t.exportSliceCsv}
             </Button>
             <Button
               tone="quiet"
               size="sm"
               onClick={() => {
                 onResetDefaultDataset();
-                setStatusNote(
-                  'Base industrial padrão (960 registros em 8 plantas) restaurada.'
-                );
+                setStatusNote(t.restoreStatus);
               }}
             >
               <RotateCcw className="w-4 h-4" />
-              Restaurar base padrão
+              {t.restoreDefault}
             </Button>
           </div>
         </div>
@@ -242,10 +244,10 @@ export const DatasetView: React.FC<DatasetViewProps> = ({
               <Upload className="w-5 h-5 text-primary shrink-0 mt-0.5" />
               <div className="min-w-0">
                 <p className="text-label font-medium text-foreground">
-                  Arraste sua planilha .xlsx, .xls ou .csv aqui
+                  {t.dropzoneTitle}
                 </p>
                 <p className="text-caption text-muted">
-                  Processamento local imediato no navegador · {allRows.length} registros atualmente em memória
+                  {t.dropzoneDesc(allRows.length)}
                 </p>
               </div>
             </div>
@@ -269,7 +271,7 @@ export const DatasetView: React.FC<DatasetViewProps> = ({
                 disabled={isParsing}
                 onClick={() => fileInputRef.current?.click()}
               >
-                {isParsing ? 'Lendo planilha...' : 'Selecionar arquivo Excel / CSV'}
+                {isParsing ? t.parsingFile : t.selectSpreadsheetBtn}
               </Button>
             </div>
           </Surface>
@@ -292,11 +294,9 @@ export const DatasetView: React.FC<DatasetViewProps> = ({
       <Surface className="divide-y divide-border/60">
         <div className="p-5 flex flex-wrap items-center justify-between gap-3">
           <div className="flex flex-wrap items-center gap-3 min-w-0">
-            <h2 className="text-title text-foreground">
-              Tabela de análise exploratória
-            </h2>
+            <h2 className="text-title text-foreground">{t.tableTitle}</h2>
             <span className="text-caption text-muted tabular-nums">
-              {sortedRows.length} de {filteredRows.length} registros exibidos · {selectedPlanta}
+              {t.rowsDisplayed(sortedRows.length, filteredRows.length, displayPlant)}
             </span>
             {highlightedDate && (
               <button
@@ -304,7 +304,7 @@ export const DatasetView: React.FC<DatasetViewProps> = ({
                 onClick={onClearHighlightedDate}
                 className="min-h-7 px-2.5 rounded-control border border-primary bg-primary/10 text-caption font-medium text-primary cursor-pointer"
               >
-                Data filtrada: {formatFullPtDate(highlightedDate)} ×
+                {t.dateFilteredTag(formatFullDate(highlightedDate, lang))}
               </button>
             )}
           </div>
@@ -312,8 +312,8 @@ export const DatasetView: React.FC<DatasetViewProps> = ({
           <div className="flex flex-wrap items-center gap-2.5">
             <input
               type="search"
-              aria-label="Filtrar registros por data ou planta"
-              placeholder="Buscar data (ex: 12/11)..."
+              aria-label={t.searchAria}
+              placeholder={t.searchPlaceholder}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="min-h-9 rounded-control border border-border bg-surface px-3 text-label text-foreground placeholder:text-muted/70 focus-visible:outline-2 focus-visible:outline-primary"
@@ -324,7 +324,7 @@ export const DatasetView: React.FC<DatasetViewProps> = ({
               onClick={() => setShowAddForm((v) => !v)}
             >
               <Plus className="w-4 h-4" />
-              Inserir leitura diária
+              {t.insertReading}
             </Button>
           </div>
         </div>
@@ -332,7 +332,7 @@ export const DatasetView: React.FC<DatasetViewProps> = ({
         {showAddForm && (
           <form onSubmit={handleAddSubmit} className="p-5 bg-background/40 flex flex-col gap-4">
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-7 gap-3">
-              <Field label="Data" htmlFor="add-date">
+              <Field label={t.colDate} htmlFor="add-date">
                 <input
                   id="add-date"
                   type="date"
@@ -342,7 +342,7 @@ export const DatasetView: React.FC<DatasetViewProps> = ({
                   className={inputClassName}
                 />
               </Field>
-              <Field label="Produção (t)" htmlFor="add-prod">
+              <Field label={`${getKpiText('Produção', lang).shortLabel} (${KPI_METADATA['Produção'].unit})`} htmlFor="add-prod">
                 <input
                   id="add-prod"
                   type="number"
@@ -354,7 +354,7 @@ export const DatasetView: React.FC<DatasetViewProps> = ({
                   className={inputClassName}
                 />
               </Field>
-              <Field label="OEE (%)" htmlFor="add-oee">
+              <Field label={`${getKpiText('OEE', lang).shortLabel} (%)`} htmlFor="add-oee">
                 <input
                   id="add-oee"
                   type="number"
@@ -367,7 +367,7 @@ export const DatasetView: React.FC<DatasetViewProps> = ({
                   className={inputClassName}
                 />
               </Field>
-              <Field label="Disponib. (%)" htmlFor="add-disp">
+              <Field label={`${getKpiText('Disponibilidade', lang).shortLabel} (%)`} htmlFor="add-disp">
                 <input
                   id="add-disp"
                   type="number"
@@ -380,7 +380,7 @@ export const DatasetView: React.FC<DatasetViewProps> = ({
                   className={inputClassName}
                 />
               </Field>
-              <Field label="Qualidade (%)" htmlFor="add-qual">
+              <Field label={`${getKpiText('Qualidade', lang).shortLabel} (%)`} htmlFor="add-qual">
                 <input
                   id="add-qual"
                   type="number"
@@ -393,7 +393,7 @@ export const DatasetView: React.FC<DatasetViewProps> = ({
                   className={inputClassName}
                 />
               </Field>
-              <Field label="Consumo (MWh/t)" htmlFor="add-cons">
+              <Field label={`${getKpiText('Consumo especifico', lang).compactLabel} (${KPI_METADATA['Consumo especifico'].unit})`} htmlFor="add-cons">
                 <input
                   id="add-cons"
                   type="number"
@@ -405,7 +405,7 @@ export const DatasetView: React.FC<DatasetViewProps> = ({
                   className={inputClassName}
                 />
               </Field>
-              <Field label="Custos (R$/t)" htmlFor="add-cost">
+              <Field label={`${getKpiText('Custos', lang).shortLabel} (${KPI_METADATA['Custos'].unit})`} htmlFor="add-cost">
                 <input
                   id="add-cost"
                   type="number"
@@ -420,10 +420,10 @@ export const DatasetView: React.FC<DatasetViewProps> = ({
             </div>
             <div className="flex flex-wrap items-center justify-end gap-2">
               <Button tone="quiet" size="sm" onClick={() => setShowAddForm(false)}>
-                Cancelar
+                {t.cancel}
               </Button>
               <Button type="submit" tone="primary" size="sm">
-                Salvar registro em {selectedPlanta}
+                {t.saveRecordIn(displayPlant)}
               </Button>
             </div>
           </form>
@@ -433,13 +433,13 @@ export const DatasetView: React.FC<DatasetViewProps> = ({
           <table className="w-full text-label tabular-nums border-collapse">
             <thead>
               <tr className="border-b border-border/70 bg-background/60 text-caption uppercase tracking-wider text-muted">
-                <th className="py-3 px-4 text-left font-semibold">
+                <th className="py-3 px-3 text-left font-semibold">
                   <button
                     type="button"
                     onClick={() => toggleSort('Data')}
                     className="inline-flex items-center gap-1 uppercase tracking-wider cursor-pointer hover:text-foreground"
                   >
-                    Data
+                    {t.colDate}
                     {sortKey === 'Data' &&
                       (sortAsc ? (
                         <ArrowUp className="w-3.5 h-3.5" />
@@ -448,15 +448,15 @@ export const DatasetView: React.FC<DatasetViewProps> = ({
                       ))}
                   </button>
                 </th>
-                <th className="py-3 px-3 text-left font-semibold">Origem</th>
+                <th className="py-3 px-2 text-left font-semibold">{t.colSource}</th>
                 {(selectedKpis.length > 0 ? selectedKpis : ALL_KPIS).map((kpi) => (
-                  <th key={kpi} className="py-3 px-3 text-right font-semibold">
+                  <th key={kpi} className="py-3 px-2 text-right font-semibold">
                     <button
                       type="button"
                       onClick={() => toggleSort(kpi)}
                       className="inline-flex items-center justify-end gap-1 uppercase tracking-wider cursor-pointer hover:text-foreground whitespace-nowrap"
                     >
-                      {KPI_METADATA[kpi].shortLabel} ({KPI_METADATA[kpi].unit})
+                      {getKpiText(kpi, lang).shortLabel} ({KPI_METADATA[kpi].unit})
                       {sortKey === kpi &&
                         (sortAsc ? (
                           <ArrowUp className="w-3.5 h-3.5" />
@@ -466,7 +466,7 @@ export const DatasetView: React.FC<DatasetViewProps> = ({
                     </button>
                   </th>
                 ))}
-                <th className="py-3 px-3 text-right font-semibold">Ação</th>
+                <th className="py-3 px-3 text-right font-semibold">{t.colAction}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border/50">
@@ -476,28 +476,28 @@ export const DatasetView: React.FC<DatasetViewProps> = ({
                     colSpan={(selectedKpis.length || ALL_KPIS.length) + 3}
                     className="py-10 px-4 text-center text-body text-muted"
                   >
-                    Nenhum registro encontrado para os critérios informados.
+                    {t.noMatchingRows}
                   </td>
                 </tr>
               ) : (
                 displayedRows.map((row) => (
                   <tr key={row.id} className="hover:bg-background/50">
-                    <td className="py-2.5 px-4 text-left font-medium text-foreground whitespace-nowrap">
-                      {formatFullPtDate(row.Data)}
+                    <td className="py-2.5 px-3 text-left font-medium text-foreground whitespace-nowrap">
+                      {formatFullDate(row.Data, lang)}
                     </td>
-                    <td className="py-2.5 px-3 text-left text-caption text-muted whitespace-nowrap">
+                    <td className="py-2.5 px-2 text-left text-caption text-muted whitespace-nowrap">
                       {row.kind === 'simulated' ? (
-                        <span className="text-positive font-medium">Simulado</span>
+                        <span className="text-positive font-medium">{t.sourceSimulated}</span>
                       ) : (
-                        'Medido'
+                        t.sourceMeasured
                       )}
                     </td>
                     {(selectedKpis.length > 0 ? selectedKpis : ALL_KPIS).map((kpi) => (
                       <td
                         key={kpi}
-                        className="py-2.5 px-3 text-right text-foreground whitespace-nowrap"
+                        className="py-2.5 px-2 text-right text-foreground whitespace-nowrap"
                       >
-                        {formatKpiNumber(row[kpi], KPI_METADATA[kpi].decimals)}
+                        {formatKpiNumber(row[kpi], KPI_METADATA[kpi].decimals, lang)}
                       </td>
                     ))}
                     <td className="py-2.5 px-3 text-right">
@@ -505,11 +505,9 @@ export const DatasetView: React.FC<DatasetViewProps> = ({
                         type="button"
                         onClick={() => {
                           onDeleteRecord(row.id);
-                          setStatusNote(
-                            `Registro de ${formatFullPtDate(row.Data)} removido.`
-                          );
+                          setStatusNote(t.deleteSuccess(formatFullDate(row.Data, lang)));
                         }}
-                        aria-label={`Remover registro de ${formatFullPtDate(row.Data)}`}
+                        aria-label={t.deleteAria(formatFullDate(row.Data, lang))}
                         className="min-h-8 min-w-8 inline-flex items-center justify-center rounded-control text-muted hover:text-danger hover:bg-danger/10 cursor-pointer"
                       >
                         <Trash2 className="w-4 h-4" />
@@ -525,7 +523,7 @@ export const DatasetView: React.FC<DatasetViewProps> = ({
         {sortedRows.length > visibleLimit && (
           <div className="p-4 flex items-center justify-between gap-3">
             <span className="text-caption text-muted tabular-nums">
-              Mostrando {displayedRows.length} de {sortedRows.length} linhas
+              {t.showingCount(displayedRows.length, sortedRows.length)}
             </span>
             <div className="flex items-center gap-2">
               <Button
@@ -533,14 +531,14 @@ export const DatasetView: React.FC<DatasetViewProps> = ({
                 size="sm"
                 onClick={() => setVisibleLimit((prev) => prev + 30)}
               >
-                Mostrar mais 30 linhas
+                {t.showMore30}
               </Button>
               <Button
                 tone="ghost"
                 size="sm"
                 onClick={() => setVisibleLimit(sortedRows.length)}
               >
-                Mostrar todas ({sortedRows.length})
+                {t.showAllRows(sortedRows.length)}
               </Button>
             </div>
           </div>

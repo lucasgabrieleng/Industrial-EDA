@@ -344,19 +344,25 @@ export function detectOutlierFlags(rows: IndustrialRecord[], kpi: KpiKey): Set<s
   return flagged;
 }
 
+const enNumberFormatters = new Map<number, Intl.NumberFormat>();
 const ptNumberFormatters = new Map<number, Intl.NumberFormat>();
 
-export function formatKpiNumber(value: number | null | undefined, decimals = 1): string {
+export function formatKpiNumber(
+  value: number | null | undefined,
+  decimals = 1,
+  lang: 'en' | 'pt' = 'en'
+): string {
   if (value === null || value === undefined || !Number.isFinite(value)) {
-    return 'Sem dados';
+    return lang === 'pt' ? 'Sem dados' : 'No data';
   }
-  let fmt = ptNumberFormatters.get(decimals);
+  const cache = lang === 'pt' ? ptNumberFormatters : enNumberFormatters;
+  let fmt = cache.get(decimals);
   if (!fmt) {
-    fmt = new Intl.NumberFormat('pt-BR', {
+    fmt = new Intl.NumberFormat(lang === 'pt' ? 'pt-BR' : 'en-US', {
       minimumFractionDigits: decimals,
       maximumFractionDigits: decimals,
     });
-    ptNumberFormatters.set(decimals, fmt);
+    cache.set(decimals, fmt);
   }
   return fmt.format(value);
 }

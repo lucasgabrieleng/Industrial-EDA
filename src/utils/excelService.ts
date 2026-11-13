@@ -75,12 +75,19 @@ export interface ExcelImportResult {
   skippedRows: number;
 }
 
-export async function parseIndustrialSpreadsheet(file: File): Promise<ExcelImportResult> {
+export async function parseIndustrialSpreadsheet(
+  file: File,
+  lang: 'en' | 'pt' = 'en'
+): Promise<ExcelImportResult> {
   const buffer = await file.arrayBuffer();
   const workbook = XLSX.read(buffer, { type: 'array', cellDates: true });
   const sheetName = workbook.SheetNames[0];
   if (!sheetName) {
-    throw new Error('O arquivo enviado não contém planilhas válidas.');
+    throw new Error(
+      lang === 'pt'
+        ? 'O arquivo enviado não contém planilhas válidas.'
+        : 'The uploaded file does not contain any valid worksheets.'
+    );
   }
 
   const worksheet = workbook.Sheets[sheetName];
@@ -89,7 +96,11 @@ export async function parseIndustrialSpreadsheet(file: File): Promise<ExcelImpor
   });
 
   if (rawRows.length === 0) {
-    throw new Error('A planilha está vazia. Inclua cabeçalhos e registros diários.');
+    throw new Error(
+      lang === 'pt'
+        ? 'A planilha está vazia. Inclua cabeçalhos e registros diários.'
+        : 'The spreadsheet is empty. Include headers and daily rows.'
+    );
   }
 
   // Map normalized header -> actual header in sheet
@@ -113,7 +124,9 @@ export async function parseIndustrialSpreadsheet(file: File): Promise<ExcelImpor
 
   if (!colData || !colGerencia || !colPlanta) {
     throw new Error(
-      'Colunas obrigatórias ausentes. Certifique-se de incluir: Data, Gerencia e Planta.'
+      lang === 'pt'
+        ? 'Colunas obrigatórias ausentes. Certifique-se de incluir: Data, Gerencia e Planta.'
+        : 'Required columns are missing. Ensure you include: Data (Date), Gerencia (Management), and Planta (Plant).'
     );
   }
 
@@ -159,7 +172,9 @@ export async function parseIndustrialSpreadsheet(file: File): Promise<ExcelImpor
 
   if (records.length === 0) {
     throw new Error(
-      'Nenhuma linha válida encontrada. Verifique o formato da coluna Data (AAAA-MM-DD ou DD/MM/AAAA).'
+      lang === 'pt'
+        ? 'Nenhuma linha válida encontrada. Verifique o formato da coluna Data (AAAA-MM-DD ou DD/MM/AAAA).'
+        : 'No valid rows found. Check the Date column format (YYYY-MM-DD or DD/MM/YYYY).'
     );
   }
 

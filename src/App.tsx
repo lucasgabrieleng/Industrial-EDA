@@ -7,17 +7,20 @@ import { OverviewView } from './components/OverviewView';
 import { Sidebar } from './components/Sidebar';
 import { Button } from './components/ui';
 import {
+  formatFullDate,
   formatLocalDate,
-  formatShortPtDate,
+  formatShortDate,
   generateInitialIndustrialDataset,
   generateRealtimeShiftTick,
   parseLocalDate,
 } from './data/mockIndustrialData';
+import { TRANSLATIONS, translatePlantName } from './i18n/translations';
 import {
   ALL_KPIS,
   WorkspaceView,
   type IndustrialRecord,
   type KpiKey,
+  type LanguageMode,
   type ThemeMode,
 } from './types/eda';
 import { generateIndustrialPdfReport } from './utils/pdfExport';
@@ -29,6 +32,7 @@ import {
 
 const STORAGE_KEY = 'industrial_eda_custom_records_v2';
 const THEME_STORAGE_KEY = 'industrial_eda_theme_v1';
+const LANG_STORAGE_KEY = 'industrial_eda_lang_v1';
 
 function loadInitialRecords(): IndustrialRecord[] {
   try {
@@ -98,6 +102,31 @@ export default function App() {
       // Ignore storage errors
     }
   }, [theme]);
+
+  const [lang, setLang] = useState<LanguageMode>(() => {
+    const paramLang = initialParams.get('lang');
+    if (paramLang === 'en' || paramLang === 'pt') {
+      return paramLang;
+    }
+    try {
+      const saved = window.localStorage.getItem(LANG_STORAGE_KEY);
+      if (saved === 'en' || saved === 'pt') return saved;
+    } catch {
+      // Ignore storage errors
+    }
+    return 'en';
+  });
+
+  useEffect(() => {
+    document.documentElement.lang = lang === 'pt' ? 'pt-BR' : 'en';
+    try {
+      window.localStorage.setItem(LANG_STORAGE_KEY, lang);
+    } catch {
+      // Ignore storage errors
+    }
+  }, [lang]);
+
+  const t = TRANSLATIONS[lang];
 
   const [activeView, setActiveView] = useState<WorkspaceView>(() => {
     const v = initialParams.get('view');
@@ -242,11 +271,12 @@ export default function App() {
     return () => window.clearInterval(timer);
   }, [isRealtimeActive, selectedGerencia, selectedPlanta]);
 
-  // Sync URL query params for shareable link capability (including theme)
+  // Sync URL query params for shareable link capability (including theme and language)
   useEffect(() => {
     const params = new URLSearchParams();
     params.set('view', activeView);
     params.set('theme', theme);
+    params.set('lang', lang);
     if (selectedGerencia) params.set('gerencia', selectedGerencia);
     if (selectedPlanta) params.set('planta', selectedPlanta);
     if (selectedKpis.length > 0 && selectedKpis.length < ALL_KPIS.length) {
@@ -256,7 +286,7 @@ export default function App() {
     if (endDate) params.set('end', endDate);
     const nextUrl = `${window.location.pathname}?${params.toString()}`;
     window.history.replaceState(null, '', nextUrl);
-  }, [activeView, theme, selectedGerencia, selectedPlanta, selectedKpis, startDate, endDate]);
+  }, [activeView, theme, lang, selectedGerencia, selectedPlanta, selectedKpis, startDate, endDate]);
 
   // Filtered rows for active Gerencia, Planta, and Date window
   const filteredRows = useMemo(() => {
@@ -371,12 +401,11 @@ export default function App() {
         stats: descriptiveStats,
         corrMatrix: correlationMatrix,
         logoUrl,
+        lang,
       });
     } catch (err) {
       setPdfError(
-        err instanceof Error
-          ? err.message
-          : 'Não foi possível gerar o arquivo PDF.'
+        err instanceof Error ? err.message : t.pdfErrorFallback
       );
     } finally {
       setIsExportingPdf(false);
@@ -455,10 +484,12 @@ export default function App() {
   };
 
   const viewTitleMap: Record<WorkspaceView, string> = {
-    [WorkspaceView.OVERVIEW]: 'Visão geral da planta, tendências e KPIs',
-    [WorkspaceView.CORRELATION]: 'Matriz de correlação e estatísticas',
-    [WorkspaceView.DATASET]: 'Base de dados e planilha Excel',
+    [WorkspaceView.OVERVIEW]: t.viewTitles.overview,
+    [WorkspaceView.CORRELATION]: t.viewTitles.correlation,
+    [WorkspaceView.DATASET]: t.viewTitles.dataset,
   };
+
+  const displayPlant = translatePlantName(selectedPlanta, lang);
 
   return (
     <MotionConfig reducedMotion="user">
@@ -501,6 +532,8 @@ export default function App() {
           onCustomLogoUpload={setLogoUrl}
           theme={theme}
           onChangeTheme={setTheme}
+          lang={lang}
+          onChangeLang={setLang}
           mobileOpen={mobileDrawerOpen}
           onCloseMobile={() => setMobileDrawerOpen(false)}
         />
@@ -513,7 +546,7 @@ export default function App() {
               <button
                 type="button"
                 onClick={() => setMobileDrawerOpen(true)}
-                aria-label="Abrir filtros e navegação"
+                aria-label={t.openDrawer}
                 className="md:hidden min-h-10 min-w-10 inline-flex items-center justify-center rounded-control border border-border bg-surface text-foreground hover:bg-background cursor-pointer"
               >
                 <Menu className="w-5 h-5" />
@@ -525,10 +558,10 @@ export default function App() {
                 </h1>
                 <p
                   className="text-caption sm:text-label text-muted truncate"
-                  title={`${selectedPlanta} · ${formatShortPtDate(startDate)} a ${formatShortPtDate(endDate)}`}
+                  title={`${displayPlant} · ${formatShortDate(startDate, lang)} ${t.to} ${formatShortDate(endDate, lang)}`}
                 >
-                  {selectedPlanta} · {formatShortPtDate(startDate)} a{' '}
-                  {formatShortPtDate(endDate)}
+                  {displayPlant} · {formatShortDate(startDate, lang)} {t.to}{' '}
+                  {formatShortDate(endDate, lang)}
                 </p>
               </div>
             </div>
@@ -538,12 +571,12 @@ export default function App() {
                 {linkCopied ? (
                   <>
                     <Check className="w-4 h-4 text-positive" />
-                    Link copiado
+                    {t.linkCopied}
                   </>
                 ) : (
                   <>
                     <Link2 className="w-4 h-4" />
-                    Compartilhar link
+                    {t.shareLink}
                   </>
                 )}
               </Button>
@@ -559,7 +592,7 @@ export default function App() {
                 onClick={() => void handleExportPdf()}
               >
                 <FileDown className="w-4 h-4" />
-                {isExportingPdf ? 'Gerando PDF...' : 'Salvar análise em PDF'}
+                {isExportingPdf ? t.exportingPdf : t.exportPdf}
               </Button>
             </div>
           </header>
@@ -573,15 +606,17 @@ export default function App() {
                   className="rounded-control border border-border bg-surface px-4 py-2.5 flex items-center justify-between gap-3 text-label"
                 >
                   <span>
-                    Registro de {deletedRecordUndo.Data} removido de{' '}
-                    {deletedRecordUndo.Planta}.
+                    {t.recordRemoved(
+                      formatFullDate(deletedRecordUndo.Data, lang),
+                      translatePlantName(deletedRecordUndo.Planta, lang)
+                    )}
                   </span>
                   <button
                     type="button"
                     onClick={handleUndoDelete}
                     className="font-medium text-primary hover:underline cursor-pointer whitespace-nowrap"
                   >
-                    Desfazer exclusão
+                    {t.undoDelete}
                   </button>
                 </div>
               )}
@@ -607,6 +642,7 @@ export default function App() {
                 selectedKpis={selectedKpis}
                 comparisons={kpiComparisons}
                 comparisonDays={windowDays}
+                lang={lang}
                 onInspectDateInTable={(date) => {
                   setHighlightedDate(date ?? null);
                   setActiveView(WorkspaceView.DATASET);
@@ -621,6 +657,7 @@ export default function App() {
                 stats={descriptiveStats}
                 corrMatrix={correlationMatrix}
                 theme={theme}
+                lang={lang}
               />
             )}
 
@@ -632,6 +669,7 @@ export default function App() {
                 selectedPlanta={selectedPlanta}
                 selectedKpis={selectedKpis}
                 highlightedDate={highlightedDate}
+                lang={lang}
                 onClearHighlightedDate={() => setHighlightedDate(null)}
                 onImportRecords={handleImportSpreadsheet}
                 onAddRecord={handleAddRecord}

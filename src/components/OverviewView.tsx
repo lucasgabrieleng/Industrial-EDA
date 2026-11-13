@@ -1,6 +1,12 @@
 import React, { useState } from 'react';
 import { ArrowDownRight, ArrowUpRight, Minus, Table2 } from 'lucide-react';
-import { KPI_METADATA, type IndustrialRecord, type KpiKey } from '../types/eda';
+import { TRANSLATIONS, getKpiText } from '../i18n/translations';
+import {
+  KPI_METADATA,
+  type IndustrialRecord,
+  type KpiKey,
+  type LanguageMode,
+} from '../types/eda';
 import {
   computeDescriptiveStats,
   formatKpiNumber,
@@ -18,6 +24,7 @@ interface OverviewViewProps {
   selectedKpis: KpiKey[];
   comparisons: KpiSummaryComparison[];
   comparisonDays: number;
+  lang: LanguageMode;
   onInspectDateInTable: (date?: string) => void;
 }
 
@@ -31,12 +38,14 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
   selectedKpis,
   comparisons,
   comparisonDays,
+  lang,
   onInspectDateInTable,
 }) => {
   const [chartMode, setChartMode] = useState<ChartLayoutMode>('both');
   const [showRollingMean, setShowRollingMean] = useState(true);
   const [highlightOutliers, setHighlightOutliers] = useState(true);
   const [focusedKpi, setFocusedKpi] = useState<KpiKey | null>(null);
+  const t = TRANSLATIONS[lang];
 
   const handleFocusKpi = (kpi: KpiKey) => {
     setFocusedKpi(kpi);
@@ -49,10 +58,8 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
   if (selectedKpis.length === 0) {
     return (
       <Surface className="p-8 flex flex-col items-start gap-3">
-        <h2 className="text-title text-foreground">Nenhum KPI selecionado</h2>
-        <p className="text-body text-muted">
-          Selecione ao menos um indicador no painel lateral para visualizar a síntese operacional, curvas de tendência e distribuição diária.
-        </p>
+        <h2 className="text-title text-foreground">{t.noKpiTitle}</h2>
+        <p className="text-body text-muted">{t.noKpiBody}</p>
       </Surface>
     );
   }
@@ -60,12 +67,8 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
   if (filteredRows.length === 0) {
     return (
       <Surface className="p-8 flex flex-col items-start gap-3">
-        <h2 className="text-title text-foreground">
-          Sem registros para o período selecionado
-        </h2>
-        <p className="text-body text-muted">
-          Amplie o intervalo de datas no menu lateral ou carregue uma nova planilha Excel na aba de dados.
-        </p>
+        <h2 className="text-title text-foreground">{t.noRowsTitle}</h2>
+        <p className="text-body text-muted">{t.noRowsBody}</p>
       </Surface>
     );
   }
@@ -82,7 +85,7 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
       return (
         <span className="inline-flex items-center gap-1 text-caption text-muted">
           <Minus className="w-3.5 h-3.5" />
-          Sem janela anterior equivalente
+          {t.noPriorWindow}
         </span>
       );
     }
@@ -105,26 +108,26 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
         <span className={`inline-flex items-center gap-0.5 font-medium ${toneClass}`}>
           <Icon className="w-3.5 h-3.5" />
           {sign}
-          {formatKpiNumber(comp.deltaPercent, 1)}%
+          {formatKpiNumber(comp.deltaPercent, 1, lang)}%
         </span>
-        <span className="text-muted">vs {comparisonDays}d anteriores</span>
+        <span className="text-muted">{t.vsPrevDays(comparisonDays)}</span>
       </span>
     );
   };
 
+  const leadMeta = leadComp ? KPI_METADATA[leadComp.kpi] : null;
+  const leadText = leadComp ? getKpiText(leadComp.kpi, lang) : null;
+
   return (
     <div className="flex flex-col gap-6 min-w-0">
       {/* Single-row Answer Figure Strip parted by 1px rules (Zero nested stat boxes) */}
-      {leadComp && (
+      {leadComp && leadMeta && leadText && (
         <Surface className="divide-y lg:divide-y-0 lg:divide-x divide-border/60 grid grid-cols-1 lg:grid-cols-12">
           <div className="p-5 lg:col-span-4 flex flex-col justify-between gap-2 min-w-0">
             <div className="flex items-baseline justify-between gap-2">
               <span className="text-label font-medium text-muted">
-                {KPI_METADATA[leadComp.kpi].shortLabel} (
-                {KPI_METADATA[leadComp.kpi].aggregation === 'sum'
-                  ? 'acumulado'
-                  : 'média do período'}
-                )
+                {leadText.shortLabel} (
+                {leadMeta.aggregation === 'sum' ? t.aggSum : t.aggMean})
               </span>
               <button
                 type="button"
@@ -132,27 +135,22 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
                 className="inline-flex items-center gap-1 text-caption font-medium text-primary hover:underline cursor-pointer whitespace-nowrap"
               >
                 <Table2 className="w-3.5 h-3.5" />
-                Ver linhas ({filteredRows.length})
+                {t.viewRows(filteredRows.length)}
               </button>
             </div>
 
             <div className="flex items-baseline gap-2 tabular-nums">
               <span className="text-display text-foreground">
-                {formatKpiNumber(
-                  leadComp.value,
-                  KPI_METADATA[leadComp.kpi].decimals
-                )}
+                {formatKpiNumber(leadComp.value, leadMeta.decimals, lang)}
               </span>
               <span className="text-title text-muted font-normal">
-                {KPI_METADATA[leadComp.kpi].unit}
+                {leadMeta.unit}
               </span>
             </div>
 
             <div className="flex flex-col gap-0.5">
               {renderDeltaLine(leadComp)}
-              <p className="text-caption text-muted">
-                {KPI_METADATA[leadComp.kpi].definition}
-              </p>
+              <p className="text-caption text-muted">{leadText.definition}</p>
             </div>
           </div>
 
@@ -160,20 +158,21 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
             <div className="lg:col-span-8 grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 divide-y sm:divide-y-0 sm:divide-x divide-border/60">
               {secondaryComps.map((comp) => {
                 const meta = KPI_METADATA[comp.kpi];
+                const kpiText = getKpiText(comp.kpi, lang);
                 return (
                   <div
                     key={comp.kpi}
                     className="p-5 flex flex-col justify-between gap-2 min-w-0"
                   >
                     <span className="text-label text-muted">
-                      {meta.shortLabel}{' '}
+                      {kpiText.shortLabel}{' '}
                       <span className="text-caption">
-                        ({meta.aggregation === 'sum' ? 'soma' : 'média'})
+                        ({meta.aggregation === 'sum' ? t.aggSumShort : t.aggMeanShort})
                       </span>
                     </span>
                     <div className="flex items-baseline gap-1.5 tabular-nums">
                       <span className="text-title font-semibold text-foreground">
-                        {formatKpiNumber(comp.value, meta.decimals)}
+                        {formatKpiNumber(comp.value, meta.decimals, lang)}
                       </span>
                       <span className="text-caption text-muted">{meta.unit}</span>
                     </div>
@@ -186,23 +185,24 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
         </Surface>
       )}
 
-      {/* Interactive Industrial Plant Simulator tailored to Mineração, Metalurgia or Manufatura */}
+      {/* Interactive Industrial Plant Simulator tailored to Mining, Metallurgy, or Manufacturing */}
       <IndustrialPlantVisual
         gerencia={gerencia}
         planta={planta}
         filteredRows={filteredRows}
         isRealtimeActive={isRealtimeActive}
+        lang={lang}
         onFocusKpi={handleFocusKpi}
       />
 
       {/* Visualization Controls Toolbar */}
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex flex-wrap items-center gap-1.5" role="group" aria-label="Modo de gráfico">
+        <div className="flex flex-wrap items-center gap-1.5" role="group" aria-label={t.chartModeLabel}>
           {(
             [
-              { id: 'both', label: 'Tendência e barras' },
-              { id: 'line', label: 'Apenas tendência' },
-              { id: 'bar', label: 'Apenas barras' },
+              { id: 'both', label: t.chartBoth },
+              { id: 'line', label: t.chartLine },
+              { id: 'bar', label: t.chartBar },
             ] as const
           ).map((mode) => (
             <Button
@@ -227,7 +227,7 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
                 : 'bg-surface border-border text-muted hover:text-foreground'
             }`}
           >
-            Média móvel 7 dias
+            {t.rollingMeanToggle}
           </button>
           <button
             type="button"
@@ -239,15 +239,16 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
                 : 'bg-surface border-border text-muted hover:text-foreground'
             }`}
           >
-            Destacar anomalias (1,5×IQR)
+            {t.outliersToggle}
           </button>
         </div>
       </div>
 
-      {/* Small Multiples / Per-KPI Trend & Bar Panels (Upgrading Streamlit's per-KPI loop) */}
+      {/* Small Multiples / Per-KPI Trend & Bar Panels */}
       <div className="flex flex-col gap-5">
         {selectedKpis.map((kpi) => {
           const meta = KPI_METADATA[kpi];
+          const kpiText = getKpiText(kpi, lang);
           const stats = computeDescriptiveStats(filteredRows, kpi);
 
           return (
@@ -261,35 +262,35 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
               <div className="px-5 py-3.5 flex flex-wrap items-baseline justify-between gap-3">
                 <div className="min-w-0 flex flex-wrap items-baseline gap-2">
                   <h3 className="text-title text-foreground">
-                    {meta.shortLabel}
+                    {kpiText.shortLabel}
                   </h3>
                   <span className="text-caption text-muted">
-                    {meta.definition}
+                    {kpiText.definition}
                   </span>
                 </div>
 
                 <div className="flex flex-wrap items-center gap-2 text-caption text-muted tabular-nums">
                   <span>
-                    Média:{' '}
+                    {t.meanLabel}:{' '}
                     <strong className="text-foreground font-medium">
-                      {formatKpiNumber(stats.mean, meta.decimals)} {meta.unit}
+                      {formatKpiNumber(stats.mean, meta.decimals, lang)} {meta.unit}
                     </strong>
                   </span>
                   <span>·</span>
                   <span>
-                    Amplitude: {formatKpiNumber(stats.min, meta.decimals)} a{' '}
-                    {formatKpiNumber(stats.max, meta.decimals)} {meta.unit}
+                    {t.rangeLabel}: {formatKpiNumber(stats.min, meta.decimals, lang)} {t.to}{' '}
+                    {formatKpiNumber(stats.max, meta.decimals, lang)} {meta.unit}
                   </span>
                   <span>·</span>
                   <span>
-                    DP: {formatKpiNumber(stats.std, meta.decimals)}
+                    {t.stdShort}: {formatKpiNumber(stats.std, meta.decimals, lang)}
                   </span>
                   {stats.outlierCount > 0 && (
                     <>
                       <span>·</span>
                       <span className="text-accent font-medium">
                         {stats.outlierCount}{' '}
-                        {stats.outlierCount === 1 ? 'anomalia' : 'anomalias'}
+                        {stats.outlierCount === 1 ? t.anomalySingular : t.anomalyPlural}
                       </span>
                     </>
                   )}
@@ -308,6 +309,7 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
                     <KpiTrendChart
                       rows={filteredRows}
                       kpi={kpi}
+                      lang={lang}
                       showRollingMean={showRollingMean}
                       highlightOutliers={highlightOutliers}
                       onSelectDate={(date) => onInspectDateInTable(date)}
@@ -320,6 +322,7 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
                     <KpiBarChart
                       rows={filteredRows}
                       kpi={kpi}
+                      lang={lang}
                       highlightOutliers={highlightOutliers}
                       onSelectDate={(date) => onInspectDateInTable(date)}
                     />
