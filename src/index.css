@@ -83,6 +83,20 @@ html {
   stroke-linejoin: round;
 }
 
+@keyframes processFlow {
+  from {
+    stroke-dashoffset: 24;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+.animate-process-flow {
+  stroke-dasharray: 6 6;
+  animation: processFlow 1.2s linear infinite;
+}
+
 @media (prefers-reduced-motion: reduce) {
   *:not(.animate-spin):not(.animate-pulse),
   *:not(.animate-spin):not(.animate-pulse)::before,

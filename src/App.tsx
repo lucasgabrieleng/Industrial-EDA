@@ -455,7 +455,7 @@ export default function App() {
   };
 
   const viewTitleMap: Record<WorkspaceView, string> = {
-    [WorkspaceView.OVERVIEW]: 'Análise exploratória de KPIs',
+    [WorkspaceView.OVERVIEW]: 'Visão geral da planta, tendências e KPIs',
     [WorkspaceView.CORRELATION]: 'Matriz de correlação e estatísticas',
     [WorkspaceView.DATASET]: 'Base de dados e planilha Excel',
   };
@@ -600,6 +600,9 @@ export default function App() {
           <main className="flex-1 p-4 sm:p-6 lg:p-8 min-w-0">
             {activeView === WorkspaceView.OVERVIEW && (
               <OverviewView
+                gerencia={selectedGerencia}
+                planta={selectedPlanta}
+                isRealtimeActive={isRealtimeActive}
                 filteredRows={filteredRows}
                 selectedKpis={selectedKpis}
                 comparisons={kpiComparisons}

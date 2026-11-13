@@ -6,10 +6,14 @@ import {
   formatKpiNumber,
   type KpiSummaryComparison,
 } from '../utils/statistics';
+import { IndustrialPlantVisual } from './IndustrialPlantVisual';
 import { KpiBarChart, KpiTrendChart } from './KpiCharts';
 import { Button, Surface } from './ui';
 
 interface OverviewViewProps {
+  gerencia: string;
+  planta: string;
+  isRealtimeActive: boolean;
   filteredRows: IndustrialRecord[];
   selectedKpis: KpiKey[];
   comparisons: KpiSummaryComparison[];
@@ -20,6 +24,9 @@ interface OverviewViewProps {
 type ChartLayoutMode = 'both' | 'line' | 'bar';
 
 export const OverviewView: React.FC<OverviewViewProps> = ({
+  gerencia,
+  planta,
+  isRealtimeActive,
   filteredRows,
   selectedKpis,
   comparisons,
@@ -29,6 +36,15 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
   const [chartMode, setChartMode] = useState<ChartLayoutMode>('both');
   const [showRollingMean, setShowRollingMean] = useState(true);
   const [highlightOutliers, setHighlightOutliers] = useState(true);
+  const [focusedKpi, setFocusedKpi] = useState<KpiKey | null>(null);
+
+  const handleFocusKpi = (kpi: KpiKey) => {
+    setFocusedKpi(kpi);
+    const el = document.getElementById(`kpi-panel-${kpi}`);
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+  };
 
   if (selectedKpis.length === 0) {
     return (
@@ -170,6 +186,15 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
         </Surface>
       )}
 
+      {/* Interactive Industrial Plant Simulator tailored to Mineração, Metalurgia or Manufatura */}
+      <IndustrialPlantVisual
+        gerencia={gerencia}
+        planta={planta}
+        filteredRows={filteredRows}
+        isRealtimeActive={isRealtimeActive}
+        onFocusKpi={handleFocusKpi}
+      />
+
       {/* Visualization Controls Toolbar */}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-wrap items-center gap-1.5" role="group" aria-label="Modo de gráfico">
@@ -226,7 +251,13 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
           const stats = computeDescriptiveStats(filteredRows, kpi);
 
           return (
-            <Surface key={kpi} className="divide-y divide-border/60">
+            <Surface
+              key={kpi}
+              id={`kpi-panel-${kpi}`}
+              className={`divide-y divide-border/60 ${
+                focusedKpi === kpi ? 'ring-2 ring-primary/60' : ''
+              }`}
+            >
               <div className="px-5 py-3.5 flex flex-wrap items-baseline justify-between gap-3">
                 <div className="min-w-0 flex flex-wrap items-baseline gap-2">
                   <h3 className="text-title text-foreground">

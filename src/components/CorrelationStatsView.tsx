@@ -172,20 +172,31 @@ export const CorrelationStatsView: React.FC<CorrelationStatsViewProps> = ({
             </p>
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full border-collapse border border-border/70 text-label tabular-nums">
+              <table className="w-full border-collapse border border-border/70 text-caption sm:text-label tabular-nums">
                 <thead>
                   <tr className="border-b border-border/70 bg-background/60">
-                    <th className="p-2.5 text-left text-caption uppercase tracking-wider font-semibold text-muted border-r border-border/70">
+                    <th className="px-2 py-2 text-left text-caption uppercase tracking-wider font-semibold text-muted border-r border-border/70">
                       KPI
                     </th>
-                    {selectedKpis.map((colKpi) => (
-                      <th
-                        key={colKpi}
-                        className="p-2.5 text-center text-caption uppercase tracking-wider font-semibold text-muted border-r last:border-r-0 border-border/70"
-                      >
-                        {KPI_METADATA[colKpi].shortLabel}
-                      </th>
-                    ))}
+                    {selectedKpis.map((colKpi) => {
+                      const compactLabel: Record<KpiKey, string> = {
+                        Produção: 'Prod.',
+                        OEE: 'OEE',
+                        Disponibilidade: 'Disp.',
+                        Qualidade: 'Qual.',
+                        'Consumo especifico': 'Consumo',
+                        Custos: 'Custos',
+                      };
+                      return (
+                        <th
+                          key={colKpi}
+                          title={KPI_METADATA[colKpi].shortLabel}
+                          className="px-1.5 py-2 text-center text-caption uppercase tracking-wider font-semibold text-muted border-r last:border-r-0 border-border/70 whitespace-nowrap"
+                        >
+                          {compactLabel[colKpi]}
+                        </th>
+                      );
+                    })}
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border/70">
@@ -193,7 +204,7 @@ export const CorrelationStatsView: React.FC<CorrelationStatsViewProps> = ({
                     <tr key={rowKpi}>
                       <th
                         scope="row"
-                        className="p-2.5 text-left text-label font-medium text-foreground bg-background/40 border-r border-border/70 whitespace-nowrap"
+                        className="px-2 py-2 text-left text-caption sm:text-label font-medium text-foreground bg-background/40 border-r border-border/70 whitespace-nowrap"
                       >
                         {KPI_METADATA[rowKpi].shortLabel}
                       </th>

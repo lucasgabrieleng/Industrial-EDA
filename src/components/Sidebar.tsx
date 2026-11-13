@@ -158,7 +158,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
         <div className="flex items-center justify-between gap-2">
           <span className="text-caption text-muted">
-            Telemetria &amp; KPIs Industriais
+            v2.0 · Planta Digital &amp; KPIs
           </span>
           <input
             ref={logoInputRef}
