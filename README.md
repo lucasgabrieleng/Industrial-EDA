@@ -1,4 +1,4 @@
-# Industrial EDA Studio v2 — Dynamic Exploratory Data Analysis & Plant Simulator
+# Industrial EDA Studio — Dynamic Exploratory Data Analysis & Plant Simulator
 
 > Version **2.0** of the **Industrial Exploratory Data Analysis (EDA)** web platform built with **React 19, TypeScript, Vite, and Tailwind CSS**, featuring a dynamic SVG industrial plant visual simulator, real-time KPI monitoring, statistical diagnostics, Excel ingestion, and PDF executive reporting.
 >
@@ -7,7 +7,7 @@
 
 ## Overview
 
-Industrial engineering teams frequently rely on Excel spreadsheets and static scripts to inspect production stability, Overall Equipment Effectiveness (OEE), specific energy consumption, and unit costs. Version 2.0 transforms a multi-iteration Python/Streamlit EDA workflow into a fast, client-side **React + TypeScript** analytical workspace combining an interactive industrial process schematic with live telemetry and statistical diagnostics.
+Industrial engineering teams frequently rely on Excel spreadsheets and static scripts to inspect production stability, Overall Equipment Effectiveness (OEE), specific energy consumption, and unit costs. This script transforms a multi-iteration Python/Streamlit EDA workflow into a fast, client-side **React + TypeScript** analytical workspace combining an interactive industrial process schematic with live telemetry and statistical diagnostics.
 
 ## Application Snapshots
 
